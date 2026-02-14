@@ -75,21 +75,6 @@
     .judgment-text {
       animation: judgmentPop 0.6s ease-out;
     }
-
-    /* Loading spinner */
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-
-    .spinner {
-      border: 4px solid rgba(255, 255, 255, 0.3);
-      border-top: 4px solid white;
-      border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      animation: spin 1s linear infinite;
-    }
   </style>
   
   <script src="https://cdn.tailwindcss.com"></script>
@@ -113,89 +98,86 @@
 
     // GAME SETTINGS
     const LANES = 3;
-    const HIT_PANEL_POSITION = 0.82; // Hit panel starts here
-    const HIT_PANEL_HEIGHT = 0.10; // Panel height (10% of screen)
-    const HIT_LINE_POSITION = 0.87; // Center of hit panel
-    const NOTE_SPEED = 0.00055; // Slower for better sync
+    const HIT_PANEL_POSITION = 0.82;
+    const HIT_PANEL_HEIGHT = 0.10;
+    const HIT_LINE_POSITION = 0.87;
+    const NOTE_SPEED = 0.00055;
     const NOTE_HEIGHT = 85;
-    const TIMING_WINDOWS = { 
-      perfect: 60,
-      great: 100, 
-      good: 150, 
-      miss: 200 
-    };
+    const TIMING_WINDOWS = { perfect: 60, great: 100, good: 150, miss: 200 };
     const NOTE_TYPES = { TAP: 'tap', HOLD: 'hold', SWIPE_LEFT: 'swipe-left', SWIPE_RIGHT: 'swipe-right', SWIPE_UP: 'swipe-up' };
 
     const INITIAL_PLAYER = {
       id: 'player1', name: 'Player', currency: 100, totalStars: 0,
-      unlockedSongs: [], // Will be populated from songs folder
+      unlockedSongs: ['no-me-pidas-perdon', 'levels', 'feel-u-luv-me'], // 3 starter songs
       completedChallenges: [], scores: {}, wishlist: [], unlockedGiftBoxes: []
     };
 
-    // This will be populated from songs folder
-    const loadSongsFromFolder = async () => {
-      const songFiles = [
-        { filename: 'no-me-pidas-perdon.mp3', jsonFile: 'no-me-pidas-perdon.json' },
-        { filename: 'levels.mp3', jsonFile: 'levels.json' }
-      ];
-
-      const songs = [];
-      
-      for (const file of songFiles) {
-        try {
-          const response = await fetch(`./songs/${file.jsonFile}`);
-          if (response.ok) {
-            const metadata = await response.json();
-            songs.push({
-              id: metadata.id || file.filename.replace('.mp3', ''),
-              title: metadata.title,
-              artist: metadata.artist,
-              genre: metadata.genre,
-              bpm: metadata.bpm,
-              duration: metadata.duration,
-              difficulty: metadata.difficulty,
-              unlockTier: metadata.unlockTier || 0,
-              requiredStars: metadata.requiredStars || 0,
-              audioUrl: `./songs/${file.filename}`
-            });
-          }
-        } catch (e) {
-          console.error(`Failed to load ${file.jsonFile}:`, e);
-        }
+    // HARDCODED SONGS - Always available, no JSON needed
+    const DEFAULT_SONGS = [
+      {
+        id: 'no-me-pidas-perdon',
+        title: 'No Me Pidas Perdón',
+        artist: 'Banda MS',
+        genre: 'Regional Mexican',
+        bpm: 92,
+        duration: 223,
+        difficulty: { easy: 2, normal: 4, hard: 7 },
+        unlockTier: 0,
+        requiredStars: 0,
+        audioUrl: './songs/no-me-pidas-perdon.mp3'
+      },
+      {
+        id: 'levels',
+        title: 'Levels',
+        artist: 'Avicii',
+        genre: 'EDM',
+        bpm: 126,
+        duration: 203,
+        difficulty: { easy: 3, normal: 5, hard: 8 },
+        unlockTier: 0,
+        requiredStars: 0,
+        audioUrl: './songs/levels.mp3'
+      },
+      {
+        id: 'feel-u-luv-me',
+        title: 'feel u luv me',
+        artist: 'knock2',
+        genre: 'Bass House',
+        bpm: 128,
+        duration: 192,
+        difficulty: { easy: 3, normal: 5, hard: 9 },
+        unlockTier: 0,
+        requiredStars: 0,
+        audioUrl: './songs/feel-u-luv-me.mp3'
+      },
+      {
+        id: 'bad-romance',
+        title: 'Bad Romance',
+        artist: 'Lady Gaga',
+        genre: 'Pop',
+        bpm: 119,
+        duration: 294,
+        difficulty: { easy: 2, normal: 4, hard: 7 },
+        unlockTier: 1,
+        requiredStars: 10,
+        audioUrl: './songs/bad-romance.mp3'
       }
+    ];
 
-      // If no songs loaded, return defaults
-      if (songs.length === 0) {
-        return [
-          { id: 'song-1', title: 'Starter Beat', artist: 'Tutorial', genre: 'Electronic', unlockTier: 0, bpm: 120, duration: 90, difficulty: { easy: 1, normal: 3, hard: 5 }, audioUrl: null },
-          { id: 'song-2', title: 'Rhythm Flow', artist: 'Beginner', genre: 'Pop', unlockTier: 0, bpm: 110, duration: 90, difficulty: { easy: 2, normal: 4, hard: 6 }, audioUrl: null },
-          { id: 'song-3', title: 'Beat Drop', artist: 'Starter', genre: 'Electronic', unlockTier: 0, bpm: 128, duration: 90, difficulty: { easy: 1, normal: 3, hard: 5 }, audioUrl: null }
-        ];
-      }
-
-      return songs;
-    };
-
-    // Generate beatmap synced to actual beats
     const generateBeatmap = (bpm, duration, difficulty) => {
       const notes = [];
-      const beatInterval = (60 / bpm) * 1000; // ms per beat
+      const beatInterval = (60 / bpm) * 1000;
       const noteDensity = { easy: 0.5, normal: 0.75, hard: 1.0 }[difficulty] || 0.75;
-      
-      let time = 3000; // Start after 3 seconds
+      let time = 3000;
       const endTime = duration * 1000 - 2000;
       let lastLane = -1;
 
       while (time < endTime) {
-        // Place notes on beats or half-beats depending on difficulty
         const onBeat = Math.round(time / beatInterval) * beatInterval;
         time = onBeat;
 
-        // Choose lane (avoid same lane twice in a row)
         let lane = Math.floor(Math.random() * LANES);
-        if (lane === lastLane && LANES > 1) {
-          lane = (lane + 1) % LANES;
-        }
+        if (lane === lastLane && LANES > 1) lane = (lane + 1) % LANES;
         lastLane = lane;
 
         const noteTypeRoll = Math.random();
@@ -239,35 +221,51 @@
     };
 
     function BeatstarClone() {
-      const [currentScreen, setCurrentScreen] = useState('loading');
+      const [currentScreen, setCurrentScreen] = useState('home');
       const [player, setPlayer] = useState(() => {
         const saved = localStorage.getItem('beatstar-player');
         return saved ? JSON.parse(saved) : INITIAL_PLAYER;
       });
-      const [songs, setSongs] = useState([]);
+      const [songs] = useState(DEFAULT_SONGS);
       const [selectedSong, setSelectedSong] = useState(null);
       const [selectedDifficulty, setSelectedDifficulty] = useState('normal');
       const [showUnlockChoice, setShowUnlockChoice] = useState(false);
       const [unlockOptions, setUnlockOptions] = useState([]);
 
-      useEffect(() => {
-        // Load songs on mount
-        loadSongsFromFolder().then(loadedSongs => {
-          setSongs(loadedSongs);
-          // Unlock all songs by default for now
-          if (player.unlockedSongs.length === 0) {
-            setPlayer(prev => ({
-              ...prev,
-              unlockedSongs: loadedSongs.map(s => s.id)
-            }));
-          }
-          setCurrentScreen('home');
-        });
-      }, []);
-
       useEffect(() => { localStorage.setItem('beatstar-player', JSON.stringify(player)); }, [player]);
 
       const isSongUnlocked = (song) => player.unlockedSongs.includes(song.id);
+      const canUnlockSong = (song) => !song.requiredStars || player.totalStars >= song.requiredStars;
+
+      const handleUnlockWithChoice = () => {
+        const lockedSongs = songs.filter(s => !isSongUnlocked(s) && canUnlockSong(s));
+        if (lockedSongs.length === 0) { alert('No songs available to unlock yet! Keep playing to earn more stars.'); return; }
+        
+        const wishlistSongs = lockedSongs.filter(s => player.wishlist.includes(s.id));
+        const otherSongs = lockedSongs.filter(s => !player.wishlist.includes(s.id));
+        const options = [];
+        options.push(...wishlistSongs.slice(0, 2));
+        const shuffled = [...otherSongs].sort(() => Math.random() - 0.5);
+        options.push(...shuffled.slice(0, 3 - options.length));
+
+        setUnlockOptions(options);
+        setShowUnlockChoice(true);
+      };
+
+      const confirmUnlock = (songId) => {
+        setPlayer(prev => ({ ...prev, unlockedSongs: [...prev.unlockedSongs, songId] }));
+        setShowUnlockChoice(false);
+      };
+
+      const toggleWishlist = (songId) => {
+        setPlayer(prev => ({
+          ...prev,
+          wishlist: prev.wishlist.includes(songId)
+            ? prev.wishlist.filter(id => id !== songId)
+            : [...prev.wishlist, songId]
+        }));
+      };
+
       const startGame = (song, difficulty) => { setSelectedSong(song); setSelectedDifficulty(difficulty); setCurrentScreen('game'); };
 
       const endGame = (score, accuracy, perfect, great, good, miss) => {
@@ -285,17 +283,6 @@
         });
         setCurrentScreen('home');
       };
-
-      if (currentScreen === 'loading') {
-        return (
-          <div className="min-h-screen bg-gradient-to-br from-purple-900 via-black to-blue-900 flex items-center justify-center">
-            <div className="text-center text-white">
-              <div className="spinner mx-auto mb-4"></div>
-              <p>Loading songs...</p>
-            </div>
-          </div>
-        );
-      }
 
       if (currentScreen === 'game' && selectedSong) return <GameScreen song={selectedSong} difficulty={selectedDifficulty} onEnd={endGame} onBack={() => setCurrentScreen('home')} />;
 
@@ -319,21 +306,36 @@
           </div>
 
           <div className="p-6 max-w-6xl mx-auto">
-            <h2 className="text-2xl font-black text-purple-300 mb-6">Your Songs</h2>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-black text-purple-300">Your Songs</h2>
+              <button onClick={handleUnlockWithChoice} className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-500 px-4 py-2 rounded-lg font-bold hover:scale-105 transition-transform">
+                <Plus />Unlock New Song
+              </button>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {songs.map(song => {
                 const unlocked = isSongUnlocked(song);
+                const canUnlock = canUnlockSong(song);
+                
                 return (
-                  <div key={song.id} className={`relative bg-gradient-to-br from-purple-900/50 to-blue-900/50 rounded-xl p-5 border-2 ${unlocked ? 'border-purple-500/50' : 'border-gray-700/50 opacity-60'}`}>
-                    {!unlocked && <div className="absolute top-3 right-3 bg-red-500/80 p-2 rounded-full"><Lock /></div>}
+                  <div key={song.id} className={`relative bg-gradient-to-br from-purple-900/50 to-blue-900/50 rounded-xl p-5 border-2 transition-all ${unlocked ? 'border-purple-500/50 hover:border-purple-400 hover:shadow-xl hover:shadow-purple-500/20' : 'border-gray-700/50 opacity-60'}`}>
+                    {!unlocked && (
+                      <div className="absolute top-3 right-3 bg-red-500/80 p-2 rounded-full">
+                        <Lock />
+                      </div>
+                    )}
+                    
                     <div className="flex items-center gap-3 mb-3">
-                      <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center"><Music /></div>
+                      <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center">
+                        <Music />
+                      </div>
                       <div className="flex-1">
                         <h3 className="font-bold text-lg">{unlocked ? song.title : '???'}</h3>
                         <p className="text-sm text-purple-300">{unlocked ? song.artist : 'Locked'}</p>
                       </div>
                     </div>
+
                     {unlocked && (
                       <>
                         <div className="flex gap-2 mb-3">
@@ -345,7 +347,7 @@
                             const scoreKey = `${song.id}-${diff}`;
                             const score = player.scores[scoreKey];
                             return (
-                              <button key={diff} onClick={() => startGame(song, diff)} className="bg-black/40 p-2 rounded-lg hover:bg-black/60 text-left">
+                              <button key={diff} onClick={() => startGame(song, diff)} className="bg-black/40 p-2 rounded-lg hover:bg-black/60 text-left transition-all hover:scale-105">
                                 <div className="text-xs font-bold uppercase text-purple-300">{diff}</div>
                                 <div className="text-xs text-gray-400">Lvl {song.difficulty[diff]}</div>
                                 {score && <div className="flex items-center gap-1 mt-1">{[...Array(score.stars)].map((_, i) => <Star key={i} className="w-3 h-3 fill-yellow-400 text-yellow-400" />)}</div>}
@@ -355,11 +357,43 @@
                         </div>
                       </>
                     )}
+
+                    {!unlocked && song.requiredStars && (
+                      <div className={`text-sm text-center mt-3 ${canUnlock ? 'text-green-400 font-bold' : 'text-gray-400'}`}>
+                        {canUnlock ? `✓ Ready to unlock! (${song.requiredStars} ⭐)` : `Requires ${song.requiredStars} ⭐ (${song.requiredStars - player.totalStars} more needed)`}
+                      </div>
+                    )}
+
+                    <button onClick={(e) => { e.stopPropagation(); toggleWishlist(song.id); }} className={`absolute bottom-3 right-3 p-2 rounded-full transition-all ${player.wishlist.includes(song.id) ? 'bg-pink-500' : 'bg-white/10 text-gray-400 hover:bg-white/20'}`}>
+                      <Star className="w-4 h-4" />
+                    </button>
                   </div>
                 );
               })}
             </div>
           </div>
+
+          {showUnlockChoice && (
+            <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+              <div className="bg-gradient-to-br from-purple-900 to-blue-900 rounded-2xl p-8 max-w-4xl w-full border-2 border-purple-500">
+                <h2 className="text-3xl font-black mb-6 text-center text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">Choose Your Next Song</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  {unlockOptions.map(song => (
+                    <div key={song.id} onClick={() => confirmUnlock(song.id)} className="bg-black/40 rounded-xl p-5 border-2 border-purple-500/50 hover:border-pink-500 cursor-pointer transition-all hover:scale-105 hover:shadow-xl hover:shadow-pink-500/30">
+                      <div className="w-20 h-20 rounded-lg bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center mx-auto mb-3"><Music /></div>
+                      <h3 className="font-bold text-center mb-1">{song.title}</h3>
+                      <p className="text-sm text-purple-300 text-center mb-2">{song.artist}</p>
+                      <div className="flex justify-center gap-2">
+                        <span className="text-xs px-2 py-1 bg-purple-500/30 rounded">{song.genre}</span>
+                      </div>
+                      {player.wishlist.includes(song.id) && <div className="text-center mt-2 text-pink-400 text-xs font-bold">⭐ WISHLIST</div>}
+                    </div>
+                  ))}
+                </div>
+                <button onClick={() => setShowUnlockChoice(false)} className="w-full bg-gray-700 py-3 rounded-lg font-bold hover:bg-gray-600 transition-all">Cancel</button>
+              </div>
+            </div>
+          )}
         </div>
       );
     }
@@ -463,7 +497,6 @@
           if (note.lane === lane && !note.hit && !note.missed) {
             const timing = Math.abs(note.time - hitTime);
             if (timing < TIMING_WINDOWS.miss && timing < bestTiming) {
-              // Check note type matches
               if (swipeType && note.type !== swipeType && note.type !== NOTE_TYPES.TAP) return;
               if (!swipeType && note.type !== NOTE_TYPES.TAP && note.type !== NOTE_TYPES.HOLD) return;
               bestNote = note; 
@@ -586,7 +619,6 @@
         );
       }
 
-      // PLAYING STATE
       const visibleNotes = notes.filter(note => {
         const position = (currentTime - note.time) * NOTE_SPEED + HIT_LINE_POSITION;
         return position >= -0.1 && position <= 1.1 && !note.hit && !note.missed;
@@ -597,7 +629,6 @@
 
       return (
         <div className={`relative w-full h-screen ${bgColor} overflow-hidden touch-none`}>
-          {/* Top Score Circle */}
           <div className="absolute top-4 left-0 right-0 z-30 flex justify-center">
             <div className="relative w-32 h-32">
               <svg className="w-full h-full transform -rotate-90">
@@ -614,7 +645,6 @@
             </div>
           </div>
 
-          {/* Judgment Display */}
           {judgmentDisplay && (
             <div className="absolute top-1/3 left-0 right-0 z-40 flex justify-center pointer-events-none">
               <div className={`judgment-text text-5xl font-black ${judgmentDisplay.color} drop-shadow-2xl`}>
@@ -623,10 +653,8 @@
             </div>
           )}
 
-          {/* Game Area */}
           <div className="absolute inset-0 flex items-end" style={{ paddingBottom: '5%' }}>
             <div className="w-full h-full flex relative">
-              {/* Hit Panel - The white/translucent area */}
               <div 
                 className="absolute left-0 right-0 z-10 pointer-events-none bg-gradient-to-b from-white/5 via-white/20 to-white/5 border-y-2 border-white/40"
                 style={{ 
@@ -635,13 +663,11 @@
                   boxShadow: 'inset 0 2px 20px rgba(255,255,255,0.3), 0 0 30px rgba(255,255,255,0.2)'
                 }}
               >
-                {/* "PERFECT" text like in Beatstar */}
                 <div className="absolute bottom-2 left-0 right-0 text-center text-white/20 text-xs font-bold tracking-widest">
                   P E R F E C T
                 </div>
               </div>
 
-              {/* Lane borders */}
               <div className="absolute inset-0 flex pointer-events-none z-5">
                 {[...Array(LANES)].map((_, i) => (
                   <div key={i} className="flex-1 relative">
@@ -652,7 +678,6 @@
                 ))}
               </div>
 
-              {/* Interactive Lanes */}
               {[...Array(LANES)].map((_, lane) => (
                 <div
                   key={lane}
@@ -661,7 +686,6 @@
                   onTouchEnd={(e) => handleTouchEnd(e, lane)}
                   onClick={() => checkHit(lane, null)}
                 >
-                  {/* Notes with proper visuals */}
                   {visibleNotes.filter(note => note.lane === lane).map(note => {
                     const position = ((currentTime - note.time) * NOTE_SPEED + HIT_LINE_POSITION) * 100;
                     
@@ -669,22 +693,15 @@
                       <div
                         key={note.id}
                         className="absolute left-2 right-2 flex items-center justify-center pointer-events-none"
-                        style={{ 
-                          top: `${position}%`, 
-                          transform: 'translateY(-50%)',
-                          height: `${NOTE_HEIGHT}px`
-                        }}
+                        style={{ top: `${position}%`, transform: 'translateY(-50%)', height: `${NOTE_HEIGHT}px` }}
                       >
-                        {/* TAP - solid dark tile */}
                         {note.type === NOTE_TYPES.TAP && (
                           <div className="w-full h-full rounded-xl bg-gradient-to-b from-gray-700 via-gray-900 to-black border-2 border-white/60 shadow-2xl flex items-center justify-center"
                             style={{ boxShadow: '0 4px 25px rgba(0,0,0,0.7), inset 0 2px 15px rgba(255,255,255,0.2)' }}>
-                            {/* Horizontal line indicator */}
                             <div className="w-3/4 h-1 bg-white/80 rounded-full" />
                           </div>
                         )}
 
-                        {/* HOLD - yellow with horizontal lines */}
                         {note.type === NOTE_TYPES.HOLD && (
                           <div className="w-full rounded-xl bg-gradient-to-b from-yellow-500 via-yellow-600 to-orange-700 border-2 border-yellow-300 shadow-2xl flex flex-col items-center justify-around py-2" 
                             style={{ height: `${NOTE_HEIGHT * 2.5}px`, boxShadow: '0 4px 25px rgba(251,191,36,0.6)' }}>
@@ -695,7 +712,6 @@
                           </div>
                         )}
 
-                        {/* SWIPE UP - dark with arrow */}
                         {note.type === NOTE_TYPES.SWIPE_UP && (
                           <div className="w-full h-full rounded-xl bg-gradient-to-b from-gray-700 via-gray-900 to-black border-2 border-cyan-300 flex items-center justify-center shadow-2xl"
                             style={{ boxShadow: '0 4px 25px rgba(34,211,238,0.6), inset 0 2px 15px rgba(34,211,238,0.3)' }}>
@@ -705,7 +721,6 @@
                           </div>
                         )}
 
-                        {/* SWIPE LEFT */}
                         {note.type === NOTE_TYPES.SWIPE_LEFT && (
                           <div className="w-full h-full rounded-xl bg-gradient-to-b from-gray-700 via-gray-900 to-black border-2 border-red-300 flex items-center justify-center shadow-2xl"
                             style={{ boxShadow: '0 4px 25px rgba(248,113,113,0.6), inset 0 2px 15px rgba(248,113,113,0.3)' }}>
@@ -715,7 +730,6 @@
                           </div>
                         )}
 
-                        {/* SWIPE RIGHT */}
                         {note.type === NOTE_TYPES.SWIPE_RIGHT && (
                           <div className="w-full h-full rounded-xl bg-gradient-to-b from-gray-700 via-gray-900 to-black border-2 border-purple-300 flex items-center justify-center shadow-2xl"
                             style={{ boxShadow: '0 4px 25px rgba(192,132,252,0.6), inset 0 2px 15px rgba(192,132,252,0.3)' }}>
@@ -732,11 +746,7 @@
             </div>
           </div>
 
-          {/* Exit button */}
-          <button 
-            onClick={onBack}
-            className="absolute top-4 right-4 z-30 bg-black/60 text-white px-4 py-2 rounded-lg font-bold backdrop-blur-sm hover:bg-black/80 transition-all"
-          >
+          <button onClick={onBack} className="absolute top-4 right-4 z-30 bg-black/60 text-white px-4 py-2 rounded-lg font-bold backdrop-blur-sm hover:bg-black/80 transition-all">
             Exit
           </button>
         </div>
