@@ -14,22 +14,69 @@
       -webkit-tap-highlight-color: transparent;
       -webkit-touch-callout: none;
       user-select: none;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
     
     html, body {
-      margin: 0;
-      padding: 0;
       height: 100%;
       overflow: hidden;
       overscroll-behavior: none;
       position: fixed;
       width: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
     
     #root {
       width: 100%;
       height: 100%;
       overflow: auto;
+    }
+
+    /* Animated gradient backgrounds */
+    @keyframes gradientShift {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+
+    .game-bg-purple {
+      background: linear-gradient(45deg, #4a148c, #6a1b9a, #8e24aa, #ab47bc);
+      background-size: 400% 400%;
+      animation: gradientShift 8s ease infinite;
+    }
+
+    .game-bg-orange {
+      background: linear-gradient(45deg, #e65100, #f57c00, #fb8c00, #ffa726);
+      background-size: 400% 400%;
+      animation: gradientShift 8s ease infinite;
+    }
+
+    .game-bg-yellow {
+      background: linear-gradient(45deg, #f57f17, #f9a825, #fbc02d, #fdd835);
+      background-size: 400% 400%;
+      animation: gradientShift 8s ease infinite;
+    }
+
+    /* Lane flash effect */
+    @keyframes laneFlash {
+      0% { background-color: rgba(255, 255, 255, 0.3); }
+      100% { background-color: transparent; }
+    }
+
+    .lane-flash {
+      animation: laneFlash 0.2s ease-out;
+    }
+
+    /* Judgment text animation */
+    @keyframes judgmentPop {
+      0% { transform: scale(0); opacity: 0; }
+      50% { transform: scale(1.2); opacity: 1; }
+      100% { transform: scale(1); opacity: 0; }
+    }
+
+    .judgment-text {
+      animation: judgmentPop 0.5s ease-out;
     }
   </style>
   
@@ -53,11 +100,17 @@
     const Award = ({className = "w-5 h-5"}) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" /></svg>;
     const Trash = ({className = "w-5 h-5"}) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>;
 
-    // CORRECTED: 3 lanes like real Beatstar
+    // CORRECTED SETTINGS - Much slower, realistic Beatstar
     const LANES = 3;
-    const HIT_ZONE_POSITION = 0.75;
-    const NOTE_SPEED = 0.003;
-    const TIMING_WINDOWS = { perfect: 50, great: 100, good: 150, miss: 200 };
+    const HIT_LINE_POSITION = 0.85; // Much lower, like real Beatstar
+    const NOTE_SPEED = 0.0006; // 5x SLOWER than before!
+    const NOTE_HEIGHT = 80; // Taller tiles
+    const TIMING_WINDOWS = { 
+      perfect: 75,  // More forgiving
+      great: 120, 
+      good: 180, 
+      miss: 250 
+    };
     const NOTE_TYPES = { TAP: 'tap', HOLD: 'hold', SWIPE_LEFT: 'swipe-left', SWIPE_RIGHT: 'swipe-right', SWIPE_UP: 'swipe-up' };
 
     const INITIAL_PLAYER = {
@@ -67,16 +120,16 @@
     };
 
     const INITIAL_SONGS = [
-      { id: 'song-1', title: 'Starter Beat', artist: 'Tutorial', genre: 'Electronic', unlockTier: 0, bpm: 128, duration: 60, difficulty: { easy: 1, normal: 3, hard: 5 }, audioUrl: null },
-      { id: 'song-2', title: 'Rhythm Flow', artist: 'Beginner', genre: 'Pop', unlockTier: 0, bpm: 120, duration: 60, difficulty: { easy: 2, normal: 4, hard: 6 }, audioUrl: null },
-      { id: 'song-3', title: 'Beat Drop', artist: 'Starter', genre: 'Electronic', unlockTier: 0, bpm: 140, duration: 60, difficulty: { easy: 1, normal: 3, hard: 5 }, audioUrl: null }
+      { id: 'song-1', title: 'Starter Beat', artist: 'Tutorial', genre: 'Electronic', unlockTier: 0, bpm: 120, duration: 90, difficulty: { easy: 1, normal: 3, hard: 5 }, audioUrl: null },
+      { id: 'song-2', title: 'Rhythm Flow', artist: 'Beginner', genre: 'Pop', unlockTier: 0, bpm: 110, duration: 90, difficulty: { easy: 2, normal: 4, hard: 6 }, audioUrl: null },
+      { id: 'song-3', title: 'Beat Drop', artist: 'Starter', genre: 'Electronic', unlockTier: 0, bpm: 128, duration: 90, difficulty: { easy: 1, normal: 3, hard: 5 }, audioUrl: null }
     ];
 
     const generateBeatmap = (bpm, duration, difficulty) => {
       const notes = [];
       const beatInterval = (60 / bpm) * 1000;
-      const noteDensity = { easy: 0.5, normal: 0.75, hard: 1.0 }[difficulty] || 0.75;
-      let time = 2000;
+      const noteDensity = { easy: 0.4, normal: 0.6, hard: 0.8 }[difficulty] || 0.6;
+      let time = 3000; // Start after 3 seconds
       const endTime = duration * 1000 - 2000;
 
       while (time < endTime) {
@@ -85,15 +138,23 @@
         let noteType = NOTE_TYPES.TAP;
         
         if (difficulty === 'hard') {
-          if (noteTypeRoll < 0.15) noteType = NOTE_TYPES.HOLD;
-          else if (noteTypeRoll < 0.25) noteType = NOTE_TYPES.SWIPE_LEFT;
-          else if (noteTypeRoll < 0.35) noteType = NOTE_TYPES.SWIPE_RIGHT;
-          else if (noteTypeRoll < 0.45) noteType = NOTE_TYPES.SWIPE_UP;
+          if (noteTypeRoll < 0.12) noteType = NOTE_TYPES.HOLD;
+          else if (noteTypeRoll < 0.22) noteType = NOTE_TYPES.SWIPE_LEFT;
+          else if (noteTypeRoll < 0.32) noteType = NOTE_TYPES.SWIPE_RIGHT;
+          else if (noteTypeRoll < 0.40) noteType = NOTE_TYPES.SWIPE_UP;
         } else if (difficulty === 'normal') {
-          if (noteTypeRoll < 0.1) noteType = NOTE_TYPES.HOLD;
+          if (noteTypeRoll < 0.08) noteType = NOTE_TYPES.HOLD;
+          else if (noteTypeRoll < 0.12) noteType = NOTE_TYPES.SWIPE_UP;
         }
 
-        notes.push({ id: `note-${time}-${lane}`, lane, time, type: noteType, duration: noteType === NOTE_TYPES.HOLD ? beatInterval * 2 : 0 });
+        notes.push({ 
+          id: `note-${time}-${lane}`, 
+          lane, 
+          time, 
+          type: noteType, 
+          duration: noteType === NOTE_TYPES.HOLD ? beatInterval * 2 : 0 
+        });
+        
         time += beatInterval / noteDensity;
       }
       return notes;
@@ -277,11 +338,14 @@
       const [gameState, setGameState] = useState('ready');
       const [score, setScore] = useState(0);
       const [combo, setCombo] = useState(0);
+      const [maxCombo, setMaxCombo] = useState(0);
       const [judgments, setJudgments] = useState({ perfect: 0, great: 0, good: 0, miss: 0 });
       const [notes, setNotes] = useState([]);
       const [currentTime, setCurrentTime] = useState(0);
       const [beatmap, setBeatmap] = useState(null);
       const [touchStart, setTouchStart] = useState({});
+      const [laneFlashes, setLaneFlashes] = useState([false, false, false]);
+      const [judgmentDisplay, setJudgmentDisplay] = useState(null);
       const gameLoopRef = useRef(null);
       const startTimeRef = useRef(null);
       const audioRef = useRef(null);
@@ -295,7 +359,10 @@
       const startGame = () => {
         setGameState('playing');
         startTimeRef.current = Date.now();
-        if (song.audioUrl) { audioRef.current = new Audio(song.audioUrl); audioRef.current.play(); }
+        if (song.audioUrl) { 
+          audioRef.current = new Audio(song.audioUrl); 
+          audioRef.current.play(); 
+        }
         gameLoopRef.current = setInterval(() => {
           const elapsed = Date.now() - startTimeRef.current;
           setCurrentTime(elapsed);
@@ -303,6 +370,7 @@
             if (!note.hit && !note.missed && elapsed > note.time + TIMING_WINDOWS.miss) {
               setCombo(0);
               setJudgments(j => ({ ...j, miss: j.miss + 1 }));
+              showJudgment('MISS', 'text-red-500');
               return { ...note, missed: true };
             }
             return note;
@@ -319,6 +387,16 @@
         const hitNotes = judgments.perfect + judgments.great + judgments.good;
         const accuracy = totalNotes > 0 ? (hitNotes / totalNotes) * 100 : 0;
         setTimeout(() => { onEnd(score, accuracy, judgments.perfect, judgments.great, judgments.good, judgments.miss); }, 2000);
+      };
+
+      const flashLane = (lane) => {
+        setLaneFlashes(prev => { const n = [...prev]; n[lane] = true; return n; });
+        setTimeout(() => setLaneFlashes(prev => { const n = [...prev]; n[lane] = false; return n; }), 200);
+      };
+
+      const showJudgment = (text, color) => {
+        setJudgmentDisplay({ text, color });
+        setTimeout(() => setJudgmentDisplay(null), 500);
       };
 
       const handleTouchStart = (e, lane) => {
@@ -350,39 +428,71 @@
         const hitTime = currentTime;
         let bestNote = null;
         let bestTiming = Infinity;
+        
         notes.forEach(note => {
           if (note.lane === lane && !note.hit && !note.missed) {
             const timing = Math.abs(note.time - hitTime);
             if (timing < TIMING_WINDOWS.miss && timing < bestTiming) {
               if (swipeType && note.type !== swipeType && note.type !== NOTE_TYPES.TAP) return;
               if (!swipeType && note.type !== NOTE_TYPES.TAP && note.type !== NOTE_TYPES.HOLD) return;
-              bestNote = note; bestTiming = timing;
+              bestNote = note; 
+              bestTiming = timing;
             }
           }
         });
+
         if (bestNote) {
-          let judgment = 'miss', points = 0;
-          if (bestTiming < TIMING_WINDOWS.perfect) { judgment = 'perfect'; points = 100; }
-          else if (bestTiming < TIMING_WINDOWS.great) { judgment = 'great'; points = 75; }
-          else if (bestTiming < TIMING_WINDOWS.good) { judgment = 'good'; points = 50; }
+          let judgment = 'miss', points = 0, judgmentText = 'MISS', judgmentColor = 'text-red-500';
+          
+          if (bestTiming < TIMING_WINDOWS.perfect) {
+            judgment = 'perfect';
+            points = 100;
+            judgmentText = 'PERFECT+';
+            judgmentColor = 'text-cyan-400';
+          } else if (bestTiming < TIMING_WINDOWS.great) {
+            judgment = 'great';
+            points = 75;
+            judgmentText = 'GREAT';
+            judgmentColor = 'text-green-400';
+          } else if (bestTiming < TIMING_WINDOWS.good) {
+            judgment = 'good';
+            points = 50;
+            judgmentText = 'GOOD';
+            judgmentColor = 'text-yellow-400';
+          }
+
           if (judgment !== 'miss') {
             setNotes(prev => prev.map(n => n.id === bestNote.id ? { ...n, hit: true } : n));
             setScore(s => s + points * (combo + 1));
-            setCombo(c => c + 1);
+            setCombo(c => {
+              const newCombo = c + 1;
+              setMaxCombo(max => Math.max(max, newCombo));
+              return newCombo;
+            });
             setJudgments(j => ({ ...j, [judgment]: j[judgment] + 1 }));
-          } else { setCombo(0); }
+            flashLane(lane);
+            showJudgment(judgmentText, judgmentColor);
+          } else {
+            setCombo(0);
+            showJudgment(judgmentText, judgmentColor);
+          }
         }
       };
 
       if (gameState === 'ready') {
+        const bgColor = difficulty === 'easy' ? 'game-bg-yellow' : difficulty === 'normal' ? 'game-bg-orange' : 'game-bg-purple';
         return (
-          <div className="min-h-screen bg-black flex items-center justify-center text-white">
+          <div className={`min-h-screen ${bgColor} flex items-center justify-center text-white`}>
             <div className="text-center">
-              <h1 className="text-4xl font-black mb-4 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">{song.title}</h1>
-              <p className="text-xl text-purple-300 mb-2">{song.artist}</p>
-              <p className="text-lg text-gray-400 mb-8">{difficulty.toUpperCase()} - Level {song.difficulty[difficulty]}</p>
-              <button onClick={startGame} className="bg-gradient-to-r from-purple-500 to-pink-500 px-12 py-4 rounded-full text-2xl font-black">START</button>
-              <button onClick={onBack} className="block mx-auto mt-4 text-gray-400">Back</button>
+              <h1 className="text-4xl font-black mb-4 drop-shadow-lg">{song.title}</h1>
+              <p className="text-xl mb-2 opacity-90">{song.artist}</p>
+              <p className="text-lg opacity-75 mb-8">{difficulty.toUpperCase()} - Level {song.difficulty[difficulty]}</p>
+              <button onClick={startGame} className="bg-white text-black px-12 py-4 rounded-full text-2xl font-black hover:scale-105 transition-transform shadow-2xl">
+                START
+              </button>
+              <button onClick={onBack} className="block mx-auto mt-4 opacity-75 hover:opacity-100 transition-opacity">
+                ← Back
+              </button>
             </div>
           </div>
         );
@@ -393,54 +503,186 @@
         const hitNotes = judgments.perfect + judgments.great + judgments.good;
         const accuracy = totalNotes > 0 ? ((hitNotes / totalNotes) * 100).toFixed(1) : 0;
         const stars = calculateStars(accuracy);
+        const bgColor = difficulty === 'easy' ? 'game-bg-yellow' : difficulty === 'normal' ? 'game-bg-orange' : 'game-bg-purple';
+        
         return (
-          <div className="min-h-screen bg-gradient-to-br from-purple-900 via-black to-blue-900 flex items-center justify-center text-white">
-            <div className="text-center">
-              <h1 className="text-5xl font-black mb-8 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">COMPLETE!</h1>
-              <div className="flex justify-center gap-2 mb-6">
-                {[...Array(5)].map((_, i) => <Star key={i} className={`w-12 h-12 ${i < stars ? 'fill-yellow-400 text-yellow-400' : 'text-gray-600'}`} />)}
+          <div className={`min-h-screen ${bgColor} flex items-center justify-center text-white p-6`}>
+            <div className="text-center max-w-md">
+              {/* Score Circle like Beatstar */}
+              <div className="relative w-48 h-48 mx-auto mb-8">
+                <svg className="w-full h-full transform -rotate-90">
+                  <circle cx="96" cy="96" r="88" stroke="rgba(255,255,255,0.2)" strokeWidth="8" fill="none" />
+                  <circle cx="96" cy="96" r="88" stroke="white" strokeWidth="8" fill="none" 
+                    strokeDasharray={`${(accuracy / 100) * 553} 553`}
+                    strokeLinecap="round" />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <div className="text-sm opacity-75">FINAL STAGE</div>
+                  <div className="text-4xl font-black">{score.toLocaleString()}</div>
+                  <div className="text-sm opacity-75">:{stars}</div>
+                </div>
               </div>
-              <div className="text-4xl font-black text-purple-400 mb-2">{score.toLocaleString()}</div>
-              <div className="text-xl text-gray-300">Accuracy: {accuracy}%</div>
+
+              <div className="flex justify-center gap-2 mb-6">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className={`w-10 h-10 ${i < stars ? 'fill-yellow-400 text-yellow-400' : 'fill-none text-white opacity-30'}`} />
+                ))}
+              </div>
+
+              <div className="bg-black/40 rounded-2xl p-6 backdrop-blur-sm">
+                <div className="text-xl mb-4">Accuracy: {accuracy}%</div>
+                <div className="grid grid-cols-4 gap-3 text-sm">
+                  <div className="bg-cyan-500/20 rounded-lg p-3">
+                    <div className="text-2xl font-bold text-cyan-400">{judgments.perfect}</div>
+                    <div className="text-xs opacity-75">PERFECT</div>
+                  </div>
+                  <div className="bg-green-500/20 rounded-lg p-3">
+                    <div className="text-2xl font-bold text-green-400">{judgments.great}</div>
+                    <div className="text-xs opacity-75">GREAT</div>
+                  </div>
+                  <div className="bg-yellow-500/20 rounded-lg p-3">
+                    <div className="text-2xl font-bold text-yellow-400">{judgments.good}</div>
+                    <div className="text-xs opacity-75">GOOD</div>
+                  </div>
+                  <div className="bg-red-500/20 rounded-lg p-3">
+                    <div className="text-2xl font-bold text-red-400">{judgments.miss}</div>
+                    <div className="text-xs opacity-75">MISS</div>
+                  </div>
+                </div>
+                <div className="mt-4 text-sm opacity-75">Max Combo: {maxCombo}</div>
+              </div>
             </div>
           </div>
         );
       }
 
+      // PLAYING STATE - Real Beatstar UI
       const visibleNotes = notes.filter(note => {
-        const position = (currentTime - note.time) * NOTE_SPEED + HIT_ZONE_POSITION;
+        const position = (currentTime - note.time) * NOTE_SPEED + HIT_LINE_POSITION;
         return position >= -0.1 && position <= 1.1 && !note.hit && !note.missed;
       });
 
+      const bgColor = difficulty === 'easy' ? 'game-bg-yellow' : difficulty === 'normal' ? 'game-bg-orange' : 'game-bg-purple';
+      const progress = (currentTime / (song.duration * 1000)) * 100;
+
       return (
-        <div className="relative min-h-screen bg-black overflow-hidden touch-none">
-          <div className="absolute top-0 left-0 right-0 z-20 bg-gradient-to-b from-black/80 to-transparent p-4">
-            <div className="flex justify-between items-center text-white">
-              <div className="text-3xl font-black text-purple-400">{score.toLocaleString()}</div>
-              <div className="text-xl font-bold">Combo: <span className="text-yellow-400">{combo}</span></div>
-              <button onClick={onBack} className="text-gray-400">Exit</button>
+        <div className={`relative w-full h-screen ${bgColor} overflow-hidden touch-none`}>
+          {/* Top Score Circle - Like Beatstar */}
+          <div className="absolute top-4 left-0 right-0 z-30 flex justify-center">
+            <div className="relative w-32 h-32">
+              <svg className="w-full h-full transform -rotate-90">
+                <circle cx="64" cy="64" r="58" stroke="rgba(255,255,255,0.3)" strokeWidth="4" fill="rgba(0,0,0,0.6)" />
+                <circle cx="64" cy="64" r="58" stroke="white" strokeWidth="4" fill="none" 
+                  strokeDasharray={`${(progress / 100) * 365} 365`}
+                  strokeLinecap="round" />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
+                <div className="text-xs opacity-75">STAGE {difficulty === 'easy' ? '1' : difficulty === 'normal' ? '2' : '3'}</div>
+                <div className="text-2xl font-black">{score.toLocaleString()}</div>
+                <div className="text-xs opacity-75">:{combo}</div>
+              </div>
             </div>
           </div>
-          <div className="absolute inset-0 flex" style={{ paddingTop: '10%', paddingBottom: '10%' }}>
-            {[...Array(LANES)].map((_, lane) => (
-              <div key={lane} className="flex-1 relative border-r border-purple-500/20 last:border-r-0" onTouchStart={(e) => handleTouchStart(e, lane)} onTouchEnd={(e) => handleTouchEnd(e, lane)} onClick={() => checkHit(lane, null)}>
-                <div className="absolute inset-0 bg-gradient-to-b from-purple-900/10 to-blue-900/10" />
-                <div className="absolute left-0 right-0 h-2 bg-gradient-to-r from-purple-500 to-pink-500 opacity-80" style={{ top: `${HIT_ZONE_POSITION * 100}%` }} />
-                {visibleNotes.filter(note => note.lane === lane).map(note => {
-                  const position = ((currentTime - note.time) * NOTE_SPEED + HIT_ZONE_POSITION) * 100;
-                  return (
-                    <div key={note.id} className="absolute left-0 right-0 flex items-center justify-center" style={{ top: `${position}%`, transform: 'translateY(-50%)' }}>
-                      {note.type === NOTE_TYPES.TAP && <div className="w-20 h-16 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 shadow-lg border-4 border-white/30" />}
-                      {note.type === NOTE_TYPES.HOLD && <div className="w-20 h-32 rounded-xl bg-gradient-to-b from-yellow-500 to-orange-500 shadow-lg border-4 border-white/30" />}
-                      {note.type === NOTE_TYPES.SWIPE_UP && <div className="w-20 h-16 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-500 shadow-lg border-4 border-white/30 flex items-center justify-center text-4xl font-black">↑</div>}
-                      {note.type === NOTE_TYPES.SWIPE_LEFT && <div className="w-20 h-16 rounded-lg bg-gradient-to-br from-red-500 to-pink-500 shadow-lg border-4 border-white/30 flex items-center justify-center text-4xl font-black">←</div>}
-                      {note.type === NOTE_TYPES.SWIPE_RIGHT && <div className="w-20 h-16 rounded-lg bg-gradient-to-br from-purple-500 to-violet-500 shadow-lg border-4 border-white/30 flex items-center justify-center text-4xl font-black">→</div>}
-                    </div>
-                  );
-                })}
+
+          {/* Judgment Display */}
+          {judgmentDisplay && (
+            <div className="absolute top-1/3 left-0 right-0 z-40 flex justify-center pointer-events-none">
+              <div className={`judgment-text text-5xl font-black ${judgmentDisplay.color} drop-shadow-2xl`}>
+                {judgmentDisplay.text}
               </div>
-            ))}
+            </div>
+          )}
+
+          {/* Game Area with Lanes */}
+          <div className="absolute inset-0 flex items-end" style={{ paddingBottom: '8%' }}>
+            <div className="w-full h-full flex relative">
+              {/* Lane borders and decorations */}
+              <div className="absolute inset-0 flex pointer-events-none">
+                {[...Array(LANES)].map((_, i) => (
+                  <div key={i} className="flex-1 relative">
+                    {/* Decorative side borders like Beatstar */}
+                    {i === 0 && <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-transparent via-white/50 to-transparent" />}
+                    {i === LANES - 1 && <div className="absolute right-0 top-0 bottom-0 w-1 bg-gradient-to-b from-transparent via-white/50 to-transparent" />}
+                    {/* Inner lane separators */}
+                    {i < LANES - 1 && <div className="absolute right-0 top-0 bottom-0 w-0.5 bg-white/20" />}
+                  </div>
+                ))}
+              </div>
+
+              {/* Interactive Lanes */}
+              {[...Array(LANES)].map((_, lane) => (
+                <div
+                  key={lane}
+                  className={`flex-1 relative ${laneFlashes[lane] ? 'lane-flash' : ''}`}
+                  onTouchStart={(e) => handleTouchStart(e, lane)}
+                  onTouchEnd={(e) => handleTouchEnd(e, lane)}
+                  onClick={() => checkHit(lane, null)}
+                >
+                  {/* Hit Line - Much thicker and more visible */}
+                  <div 
+                    className="absolute left-0 right-0 h-1.5 z-10 pointer-events-none"
+                    style={{ 
+                      top: `${HIT_LINE_POSITION * 100}%`,
+                      background: 'linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,1) 50%, rgba(255,255,255,0) 100%)',
+                      boxShadow: '0 0 20px rgba(255,255,255,0.8)'
+                    }}
+                  />
+
+                  {/* Notes */}
+                  {visibleNotes.filter(note => note.lane === lane).map(note => {
+                    const position = ((currentTime - note.time) * NOTE_SPEED + HIT_LINE_POSITION) * 100;
+                    
+                    return (
+                      <div
+                        key={note.id}
+                        className="absolute left-1 right-1 flex items-center justify-center pointer-events-none"
+                        style={{ 
+                          top: `${position}%`, 
+                          transform: 'translateY(-50%)',
+                          height: `${NOTE_HEIGHT}px`
+                        }}
+                      >
+                        {note.type === NOTE_TYPES.TAP && (
+                          <div className="w-full h-full rounded-lg bg-gradient-to-b from-gray-800 to-black border-2 border-white/80 shadow-2xl" 
+                            style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.5), inset 0 2px 10px rgba(255,255,255,0.3)' }} />
+                        )}
+                        {note.type === NOTE_TYPES.HOLD && (
+                          <div className="w-full rounded-lg bg-gradient-to-b from-yellow-600 to-orange-700 border-2 border-yellow-300 shadow-2xl" 
+                            style={{ height: `${NOTE_HEIGHT * 2}px`, boxShadow: '0 4px 20px rgba(251,191,36,0.5)' }} />
+                        )}
+                        {note.type === NOTE_TYPES.SWIPE_UP && (
+                          <div className="w-full h-full rounded-lg bg-gradient-to-b from-gray-800 to-black border-2 border-cyan-400 flex items-center justify-center shadow-2xl"
+                            style={{ boxShadow: '0 4px 20px rgba(34,211,238,0.5)' }}>
+                            <div className="text-5xl font-black text-white drop-shadow-lg">↑</div>
+                          </div>
+                        )}
+                        {note.type === NOTE_TYPES.SWIPE_LEFT && (
+                          <div className="w-full h-full rounded-lg bg-gradient-to-b from-gray-800 to-black border-2 border-red-400 flex items-center justify-center shadow-2xl"
+                            style={{ boxShadow: '0 4px 20px rgba(248,113,113,0.5)' }}>
+                            <div className="text-5xl font-black text-white drop-shadow-lg">←</div>
+                          </div>
+                        )}
+                        {note.type === NOTE_TYPES.SWIPE_RIGHT && (
+                          <div className="w-full h-full rounded-lg bg-gradient-to-b from-gray-800 to-black border-2 border-purple-400 flex items-center justify-center shadow-2xl"
+                            style={{ boxShadow: '0 4px 20px rgba(192,132,252,0.5)' }}>
+                            <div className="text-5xl font-black text-white drop-shadow-lg">→</div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
           </div>
+
+          {/* Exit button */}
+          <button 
+            onClick={onBack}
+            className="absolute top-4 right-4 z-30 bg-black/60 text-white px-4 py-2 rounded-lg font-bold backdrop-blur-sm hover:bg-black/80 transition-all"
+          >
+            Exit
+          </button>
         </div>
       );
     }
@@ -454,14 +696,6 @@
         onAddSong(song);
         setNewSong({ title: '', artist: '', genre: '', bpm: 120, duration: 180, unlockTier: 0, requiredStars: 0, audioUrl: '' });
         alert('Song added!');
-      };
-
-      const handleFileUpload = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-          const url = URL.createObjectURL(file);
-          setNewSong(prev => ({ ...prev, audioUrl: url }));
-        }
       };
 
       return (
@@ -478,12 +712,7 @@
                 <input type="number" placeholder="BPM" value={newSong.bpm} onChange={(e) => setNewSong({ ...newSong, bpm: parseInt(e.target.value) })} className="bg-black/40 border border-purple-500/30 rounded-lg px-4 py-2 text-white" />
                 <input type="number" placeholder="Duration (sec)" value={newSong.duration} onChange={(e) => setNewSong({ ...newSong, duration: parseInt(e.target.value) })} className="bg-black/40 border border-purple-500/30 rounded-lg px-4 py-2 text-white" />
                 <input type="number" placeholder="Unlock Tier" value={newSong.unlockTier} onChange={(e) => setNewSong({ ...newSong, unlockTier: parseInt(e.target.value) })} className="bg-black/40 border border-purple-500/30 rounded-lg px-4 py-2 text-white" />
-                <input type="number" placeholder="Required Stars" value={newSong.requiredStars} onChange={(e) => setNewSong({ ...newSong, requiredStars: parseInt(e.target.value) })} className="bg-black/40 border border-purple-500/30 rounded-lg px-4 py-2 text-white" />
-              </div>
-              <div className="mb-4">
-                <label className="block text-sm text-gray-400 mb-2">Audio File (or use ./songs/filename.mp3)</label>
-                <input type="file" accept="audio/*" onChange={handleFileUpload} className="bg-black/40 border border-purple-500/30 rounded-lg px-4 py-2 text-white w-full" />
-                <input type="text" placeholder="Or paste URL: ./songs/song.mp3" value={newSong.audioUrl} onChange={(e) => setNewSong({ ...newSong, audioUrl: e.target.value })} className="bg-black/40 border border-purple-500/30 rounded-lg px-4 py-2 text-white w-full mt-2" />
+                <input type="text" placeholder="Audio URL: ./songs/song.mp3" value={newSong.audioUrl} onChange={(e) => setNewSong({ ...newSong, audioUrl: e.target.value })} className="bg-black/40 border border-purple-500/30 rounded-lg px-4 py-2 text-white col-span-2" />
               </div>
               <button onClick={handleAddSong} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-3 rounded-lg font-bold">Add Song</button>
             </div>
@@ -494,7 +723,7 @@
                   <div key={song.id} className="bg-black/40 rounded-lg p-4 flex justify-between items-center">
                     <div>
                       <h3 className="font-bold">{song.title}</h3>
-                      <p className="text-sm text-gray-400">{song.artist} • {song.genre} • {song.bpm} BPM</p>
+                      <p className="text-sm text-gray-400">{song.artist} • {song.genre} • {song.bpm} BPM • {song.duration}s</p>
                     </div>
                     <button onClick={() => onDeleteSong(song.id)} className="bg-red-500/20 p-2 rounded-lg text-red-400"><Trash /></button>
                   </div>
