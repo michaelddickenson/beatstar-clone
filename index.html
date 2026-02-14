@@ -34,7 +34,6 @@
       overflow: auto;
     }
 
-    /* Animated gradient backgrounds */
     @keyframes gradientShift {
       0%, 100% { background-position: 0% 50%; }
       50% { background-position: 100% 50%; }
@@ -52,15 +51,14 @@
       animation: gradientShift 8s ease infinite;
     }
 
-    .game-bg-yellow {
-      background: linear-gradient(45deg, #f57f17, #f9a825, #fbc02d, #fdd835);
+    .game-bg-green {
+      background: linear-gradient(45deg, #1b5e20, #2e7d32, #388e3c, #4caf50);
       background-size: 400% 400%;
       animation: gradientShift 8s ease infinite;
     }
 
-    /* Lane flash effect */
     @keyframes laneFlash {
-      0% { background-color: rgba(255, 255, 255, 0.3); }
+      0% { background-color: rgba(255, 255, 255, 0.4); }
       100% { background-color: transparent; }
     }
 
@@ -68,15 +66,29 @@
       animation: laneFlash 0.2s ease-out;
     }
 
-    /* Judgment text animation */
     @keyframes judgmentPop {
-      0% { transform: scale(0); opacity: 0; }
-      50% { transform: scale(1.2); opacity: 1; }
-      100% { transform: scale(1); opacity: 0; }
+      0% { transform: scale(0) translateY(-50%); opacity: 0; }
+      50% { transform: scale(1.2) translateY(-50%); opacity: 1; }
+      100% { transform: scale(1) translateY(-50%); opacity: 0; }
     }
 
     .judgment-text {
-      animation: judgmentPop 0.5s ease-out;
+      animation: judgmentPop 0.6s ease-out;
+    }
+
+    /* Loading spinner */
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .spinner {
+      border: 4px solid rgba(255, 255, 255, 0.3);
+      border-top: 4px solid white;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
     }
   </style>
   
@@ -92,59 +104,111 @@
   <script type="text/babel">
     const { useState, useEffect, useRef } = React;
     
-    // Inline SVG icons
+    // Icons
     const Plus = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>;
     const Star = ({className = "w-5 h-5"}) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>;
     const Lock = ({className = "w-4 h-4"}) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>;
     const Music = ({className = "w-8 h-8"}) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg>;
     const Award = ({className = "w-5 h-5"}) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" /></svg>;
-    const Trash = ({className = "w-5 h-5"}) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>;
 
-    // CORRECTED SETTINGS - Much slower, realistic Beatstar
+    // GAME SETTINGS
     const LANES = 3;
-    const HIT_LINE_POSITION = 0.85; // Much lower, like real Beatstar
-    const NOTE_SPEED = 0.0006; // 5x SLOWER than before!
-    const NOTE_HEIGHT = 80; // Taller tiles
+    const HIT_PANEL_POSITION = 0.82; // Hit panel starts here
+    const HIT_PANEL_HEIGHT = 0.10; // Panel height (10% of screen)
+    const HIT_LINE_POSITION = 0.87; // Center of hit panel
+    const NOTE_SPEED = 0.00055; // Slower for better sync
+    const NOTE_HEIGHT = 85;
     const TIMING_WINDOWS = { 
-      perfect: 75,  // More forgiving
-      great: 120, 
-      good: 180, 
-      miss: 250 
+      perfect: 60,
+      great: 100, 
+      good: 150, 
+      miss: 200 
     };
     const NOTE_TYPES = { TAP: 'tap', HOLD: 'hold', SWIPE_LEFT: 'swipe-left', SWIPE_RIGHT: 'swipe-right', SWIPE_UP: 'swipe-up' };
 
     const INITIAL_PLAYER = {
       id: 'player1', name: 'Player', currency: 100, totalStars: 0,
-      unlockedSongs: ['song-1', 'song-2', 'song-3'],
+      unlockedSongs: [], // Will be populated from songs folder
       completedChallenges: [], scores: {}, wishlist: [], unlockedGiftBoxes: []
     };
 
-    const INITIAL_SONGS = [
-      { id: 'song-1', title: 'Starter Beat', artist: 'Tutorial', genre: 'Electronic', unlockTier: 0, bpm: 120, duration: 90, difficulty: { easy: 1, normal: 3, hard: 5 }, audioUrl: null },
-      { id: 'song-2', title: 'Rhythm Flow', artist: 'Beginner', genre: 'Pop', unlockTier: 0, bpm: 110, duration: 90, difficulty: { easy: 2, normal: 4, hard: 6 }, audioUrl: null },
-      { id: 'song-3', title: 'Beat Drop', artist: 'Starter', genre: 'Electronic', unlockTier: 0, bpm: 128, duration: 90, difficulty: { easy: 1, normal: 3, hard: 5 }, audioUrl: null }
-    ];
+    // This will be populated from songs folder
+    const loadSongsFromFolder = async () => {
+      const songFiles = [
+        { filename: 'no-me-pidas-perdon.mp3', jsonFile: 'no-me-pidas-perdon.json' },
+        { filename: 'levels.mp3', jsonFile: 'levels.json' }
+      ];
 
+      const songs = [];
+      
+      for (const file of songFiles) {
+        try {
+          const response = await fetch(`./songs/${file.jsonFile}`);
+          if (response.ok) {
+            const metadata = await response.json();
+            songs.push({
+              id: metadata.id || file.filename.replace('.mp3', ''),
+              title: metadata.title,
+              artist: metadata.artist,
+              genre: metadata.genre,
+              bpm: metadata.bpm,
+              duration: metadata.duration,
+              difficulty: metadata.difficulty,
+              unlockTier: metadata.unlockTier || 0,
+              requiredStars: metadata.requiredStars || 0,
+              audioUrl: `./songs/${file.filename}`
+            });
+          }
+        } catch (e) {
+          console.error(`Failed to load ${file.jsonFile}:`, e);
+        }
+      }
+
+      // If no songs loaded, return defaults
+      if (songs.length === 0) {
+        return [
+          { id: 'song-1', title: 'Starter Beat', artist: 'Tutorial', genre: 'Electronic', unlockTier: 0, bpm: 120, duration: 90, difficulty: { easy: 1, normal: 3, hard: 5 }, audioUrl: null },
+          { id: 'song-2', title: 'Rhythm Flow', artist: 'Beginner', genre: 'Pop', unlockTier: 0, bpm: 110, duration: 90, difficulty: { easy: 2, normal: 4, hard: 6 }, audioUrl: null },
+          { id: 'song-3', title: 'Beat Drop', artist: 'Starter', genre: 'Electronic', unlockTier: 0, bpm: 128, duration: 90, difficulty: { easy: 1, normal: 3, hard: 5 }, audioUrl: null }
+        ];
+      }
+
+      return songs;
+    };
+
+    // Generate beatmap synced to actual beats
     const generateBeatmap = (bpm, duration, difficulty) => {
       const notes = [];
-      const beatInterval = (60 / bpm) * 1000;
-      const noteDensity = { easy: 0.4, normal: 0.6, hard: 0.8 }[difficulty] || 0.6;
+      const beatInterval = (60 / bpm) * 1000; // ms per beat
+      const noteDensity = { easy: 0.5, normal: 0.75, hard: 1.0 }[difficulty] || 0.75;
+      
       let time = 3000; // Start after 3 seconds
       const endTime = duration * 1000 - 2000;
+      let lastLane = -1;
 
       while (time < endTime) {
-        const lane = Math.floor(Math.random() * LANES);
+        // Place notes on beats or half-beats depending on difficulty
+        const onBeat = Math.round(time / beatInterval) * beatInterval;
+        time = onBeat;
+
+        // Choose lane (avoid same lane twice in a row)
+        let lane = Math.floor(Math.random() * LANES);
+        if (lane === lastLane && LANES > 1) {
+          lane = (lane + 1) % LANES;
+        }
+        lastLane = lane;
+
         const noteTypeRoll = Math.random();
         let noteType = NOTE_TYPES.TAP;
         
         if (difficulty === 'hard') {
-          if (noteTypeRoll < 0.12) noteType = NOTE_TYPES.HOLD;
-          else if (noteTypeRoll < 0.22) noteType = NOTE_TYPES.SWIPE_LEFT;
-          else if (noteTypeRoll < 0.32) noteType = NOTE_TYPES.SWIPE_RIGHT;
+          if (noteTypeRoll < 0.10) noteType = NOTE_TYPES.HOLD;
+          else if (noteTypeRoll < 0.20) noteType = NOTE_TYPES.SWIPE_LEFT;
+          else if (noteTypeRoll < 0.30) noteType = NOTE_TYPES.SWIPE_RIGHT;
           else if (noteTypeRoll < 0.40) noteType = NOTE_TYPES.SWIPE_UP;
         } else if (difficulty === 'normal') {
           if (noteTypeRoll < 0.08) noteType = NOTE_TYPES.HOLD;
-          else if (noteTypeRoll < 0.12) noteType = NOTE_TYPES.SWIPE_UP;
+          else if (noteTypeRoll < 0.15) noteType = NOTE_TYPES.SWIPE_UP;
         }
 
         notes.push({ 
@@ -175,42 +239,35 @@
     };
 
     function BeatstarClone() {
-      const [currentScreen, setCurrentScreen] = useState('home');
+      const [currentScreen, setCurrentScreen] = useState('loading');
       const [player, setPlayer] = useState(() => {
         const saved = localStorage.getItem('beatstar-player');
         return saved ? JSON.parse(saved) : INITIAL_PLAYER;
       });
-      const [songs, setSongs] = useState(() => {
-        const saved = localStorage.getItem('beatstar-songs');
-        return saved ? JSON.parse(saved) : INITIAL_SONGS;
-      });
+      const [songs, setSongs] = useState([]);
       const [selectedSong, setSelectedSong] = useState(null);
       const [selectedDifficulty, setSelectedDifficulty] = useState('normal');
       const [showUnlockChoice, setShowUnlockChoice] = useState(false);
       const [unlockOptions, setUnlockOptions] = useState([]);
 
+      useEffect(() => {
+        // Load songs on mount
+        loadSongsFromFolder().then(loadedSongs => {
+          setSongs(loadedSongs);
+          // Unlock all songs by default for now
+          if (player.unlockedSongs.length === 0) {
+            setPlayer(prev => ({
+              ...prev,
+              unlockedSongs: loadedSongs.map(s => s.id)
+            }));
+          }
+          setCurrentScreen('home');
+        });
+      }, []);
+
       useEffect(() => { localStorage.setItem('beatstar-player', JSON.stringify(player)); }, [player]);
-      useEffect(() => { localStorage.setItem('beatstar-songs', JSON.stringify(songs)); }, [songs]);
 
       const isSongUnlocked = (song) => player.unlockedSongs.includes(song.id);
-      const canUnlockSong = (song) => !song.requiredStars || player.totalStars >= song.requiredStars;
-      const unlockSong = (songId) => setPlayer(prev => ({ ...prev, unlockedSongs: [...prev.unlockedSongs, songId] }));
-
-      const handleUnlockWithChoice = () => {
-        const lockedSongs = songs.filter(s => !isSongUnlocked(s) && canUnlockSong(s));
-        if (lockedSongs.length === 0) { alert('No songs available!'); return; }
-        const wishlistSongs = lockedSongs.filter(s => player.wishlist.includes(s.id));
-        const otherSongs = lockedSongs.filter(s => !player.wishlist.includes(s.id));
-        const options = [];
-        options.push(...wishlistSongs.slice(0, 2));
-        const shuffled = [...otherSongs].sort(() => Math.random() - 0.5);
-        options.push(...shuffled.slice(0, 3 - options.length));
-        setUnlockOptions(options);
-        setShowUnlockChoice(true);
-      };
-
-      const confirmUnlock = (songId) => { unlockSong(songId); setShowUnlockChoice(false); };
-      const toggleWishlist = (songId) => setPlayer(prev => ({ ...prev, wishlist: prev.wishlist.includes(songId) ? prev.wishlist.filter(id => id !== songId) : [...prev.wishlist, songId] }));
       const startGame = (song, difficulty) => { setSelectedSong(song); setSelectedDifficulty(difficulty); setCurrentScreen('game'); };
 
       const endGame = (score, accuracy, perfect, great, good, miss) => {
@@ -229,11 +286,18 @@
         setCurrentScreen('home');
       };
 
-      const addSong = (newSong) => setSongs(prev => [...prev, { ...newSong, id: `song-${Date.now()}` }]);
-      const deleteSong = (songId) => { if (confirm('Delete?')) setSongs(prev => prev.filter(s => s.id !== songId)); };
+      if (currentScreen === 'loading') {
+        return (
+          <div className="min-h-screen bg-gradient-to-br from-purple-900 via-black to-blue-900 flex items-center justify-center">
+            <div className="text-center text-white">
+              <div className="spinner mx-auto mb-4"></div>
+              <p>Loading songs...</p>
+            </div>
+          </div>
+        );
+      }
 
       if (currentScreen === 'game' && selectedSong) return <GameScreen song={selectedSong} difficulty={selectedDifficulty} onEnd={endGame} onBack={() => setCurrentScreen('home')} />;
-      if (currentScreen === 'admin') return <AdminPanel songs={songs} onAddSong={addSong} onDeleteSong={deleteSong} onBack={() => setCurrentScreen('home')} />;
 
       return (
         <div className="min-h-screen bg-gradient-to-br from-purple-900 via-black to-blue-900 text-white">
@@ -254,20 +318,8 @@
             </div>
           </div>
 
-          <div className="bg-black/30 border-b border-purple-500/20 p-3">
-            <div className="flex gap-3 max-w-6xl mx-auto">
-              <button onClick={() => setCurrentScreen('home')} className={`px-6 py-2 rounded-lg font-bold ${currentScreen === 'home' ? 'bg-gradient-to-r from-purple-500 to-pink-500' : 'bg-white/5 text-purple-300'}`}>Songs</button>
-              <button onClick={() => setCurrentScreen('admin')} className={`px-6 py-2 rounded-lg font-bold ${currentScreen === 'admin' ? 'bg-gradient-to-r from-purple-500 to-pink-500' : 'bg-white/5 text-purple-300'}`}>Admin</button>
-            </div>
-          </div>
-
           <div className="p-6 max-w-6xl mx-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-black text-purple-300">Your Songs</h2>
-              <button onClick={handleUnlockWithChoice} className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-500 px-4 py-2 rounded-lg font-bold">
-                <Plus />Unlock Song
-              </button>
-            </div>
+            <h2 className="text-2xl font-black text-purple-300 mb-6">Your Songs</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {songs.map(song => {
@@ -303,33 +355,11 @@
                         </div>
                       </>
                     )}
-                    <button onClick={(e) => { e.stopPropagation(); toggleWishlist(song.id); }} className={`absolute bottom-3 right-3 p-2 rounded-full ${player.wishlist.includes(song.id) ? 'bg-pink-500' : 'bg-white/10 text-gray-400'}`}>
-                      <Star className="w-4 h-4" />
-                    </button>
                   </div>
                 );
               })}
             </div>
           </div>
-
-          {showUnlockChoice && (
-            <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-              <div className="bg-gradient-to-br from-purple-900 to-blue-900 rounded-2xl p-8 max-w-4xl w-full border-2 border-purple-500">
-                <h2 className="text-3xl font-black mb-6 text-center text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">Choose Your Next Song</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                  {unlockOptions.map(song => (
-                    <div key={song.id} onClick={() => confirmUnlock(song.id)} className="bg-black/40 rounded-xl p-5 border-2 border-purple-500/50 hover:border-pink-500 cursor-pointer">
-                      <div className="w-20 h-20 rounded-lg bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center mx-auto mb-3"><Music /></div>
-                      <h3 className="font-bold text-center mb-1">{song.title}</h3>
-                      <p className="text-sm text-purple-300 text-center">{song.artist}</p>
-                      {player.wishlist.includes(song.id) && <div className="text-center mt-2 text-pink-400 text-xs font-bold">⭐ WISHLIST</div>}
-                    </div>
-                  ))}
-                </div>
-                <button onClick={() => setShowUnlockChoice(false)} className="w-full bg-gray-700 py-3 rounded-lg font-bold">Cancel</button>
-              </div>
-            </div>
-          )}
         </div>
       );
     }
@@ -361,7 +391,7 @@
         startTimeRef.current = Date.now();
         if (song.audioUrl) { 
           audioRef.current = new Audio(song.audioUrl); 
-          audioRef.current.play(); 
+          audioRef.current.play().catch(e => console.log('Audio play failed:', e)); 
         }
         gameLoopRef.current = setInterval(() => {
           const elapsed = Date.now() - startTimeRef.current;
@@ -396,7 +426,7 @@
 
       const showJudgment = (text, color) => {
         setJudgmentDisplay({ text, color });
-        setTimeout(() => setJudgmentDisplay(null), 500);
+        setTimeout(() => setJudgmentDisplay(null), 600);
       };
 
       const handleTouchStart = (e, lane) => {
@@ -433,6 +463,7 @@
           if (note.lane === lane && !note.hit && !note.missed) {
             const timing = Math.abs(note.time - hitTime);
             if (timing < TIMING_WINDOWS.miss && timing < bestTiming) {
+              // Check note type matches
               if (swipeType && note.type !== swipeType && note.type !== NOTE_TYPES.TAP) return;
               if (!swipeType && note.type !== NOTE_TYPES.TAP && note.type !== NOTE_TYPES.HOLD) return;
               bestNote = note; 
@@ -480,7 +511,7 @@
       };
 
       if (gameState === 'ready') {
-        const bgColor = difficulty === 'easy' ? 'game-bg-yellow' : difficulty === 'normal' ? 'game-bg-orange' : 'game-bg-purple';
+        const bgColor = difficulty === 'easy' ? 'game-bg-green' : difficulty === 'normal' ? 'game-bg-orange' : 'game-bg-purple';
         return (
           <div className={`min-h-screen ${bgColor} flex items-center justify-center text-white`}>
             <div className="text-center">
@@ -503,12 +534,11 @@
         const hitNotes = judgments.perfect + judgments.great + judgments.good;
         const accuracy = totalNotes > 0 ? ((hitNotes / totalNotes) * 100).toFixed(1) : 0;
         const stars = calculateStars(accuracy);
-        const bgColor = difficulty === 'easy' ? 'game-bg-yellow' : difficulty === 'normal' ? 'game-bg-orange' : 'game-bg-purple';
+        const bgColor = difficulty === 'easy' ? 'game-bg-green' : difficulty === 'normal' ? 'game-bg-orange' : 'game-bg-purple';
         
         return (
           <div className={`min-h-screen ${bgColor} flex items-center justify-center text-white p-6`}>
             <div className="text-center max-w-md">
-              {/* Score Circle like Beatstar */}
               <div className="relative w-48 h-48 mx-auto mb-8">
                 <svg className="w-full h-full transform -rotate-90">
                   <circle cx="96" cy="96" r="88" stroke="rgba(255,255,255,0.2)" strokeWidth="8" fill="none" />
@@ -556,18 +586,18 @@
         );
       }
 
-      // PLAYING STATE - Real Beatstar UI
+      // PLAYING STATE
       const visibleNotes = notes.filter(note => {
         const position = (currentTime - note.time) * NOTE_SPEED + HIT_LINE_POSITION;
         return position >= -0.1 && position <= 1.1 && !note.hit && !note.missed;
       });
 
-      const bgColor = difficulty === 'easy' ? 'game-bg-yellow' : difficulty === 'normal' ? 'game-bg-orange' : 'game-bg-purple';
+      const bgColor = difficulty === 'easy' ? 'game-bg-green' : difficulty === 'normal' ? 'game-bg-orange' : 'game-bg-purple';
       const progress = (currentTime / (song.duration * 1000)) * 100;
 
       return (
         <div className={`relative w-full h-screen ${bgColor} overflow-hidden touch-none`}>
-          {/* Top Score Circle - Like Beatstar */}
+          {/* Top Score Circle */}
           <div className="absolute top-4 left-0 right-0 z-30 flex justify-center">
             <div className="relative w-32 h-32">
               <svg className="w-full h-full transform -rotate-90">
@@ -579,7 +609,7 @@
               <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
                 <div className="text-xs opacity-75">STAGE {difficulty === 'easy' ? '1' : difficulty === 'normal' ? '2' : '3'}</div>
                 <div className="text-2xl font-black">{score.toLocaleString()}</div>
-                <div className="text-xs opacity-75">:{combo}</div>
+                <div className="text-xs opacity-75">×{combo}</div>
               </div>
             </div>
           </div>
@@ -593,17 +623,30 @@
             </div>
           )}
 
-          {/* Game Area with Lanes */}
-          <div className="absolute inset-0 flex items-end" style={{ paddingBottom: '8%' }}>
+          {/* Game Area */}
+          <div className="absolute inset-0 flex items-end" style={{ paddingBottom: '5%' }}>
             <div className="w-full h-full flex relative">
-              {/* Lane borders and decorations */}
-              <div className="absolute inset-0 flex pointer-events-none">
+              {/* Hit Panel - The white/translucent area */}
+              <div 
+                className="absolute left-0 right-0 z-10 pointer-events-none bg-gradient-to-b from-white/5 via-white/20 to-white/5 border-y-2 border-white/40"
+                style={{ 
+                  top: `${HIT_PANEL_POSITION * 100}%`,
+                  height: `${HIT_PANEL_HEIGHT * 100}%`,
+                  boxShadow: 'inset 0 2px 20px rgba(255,255,255,0.3), 0 0 30px rgba(255,255,255,0.2)'
+                }}
+              >
+                {/* "PERFECT" text like in Beatstar */}
+                <div className="absolute bottom-2 left-0 right-0 text-center text-white/20 text-xs font-bold tracking-widest">
+                  P E R F E C T
+                </div>
+              </div>
+
+              {/* Lane borders */}
+              <div className="absolute inset-0 flex pointer-events-none z-5">
                 {[...Array(LANES)].map((_, i) => (
                   <div key={i} className="flex-1 relative">
-                    {/* Decorative side borders like Beatstar */}
                     {i === 0 && <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-transparent via-white/50 to-transparent" />}
                     {i === LANES - 1 && <div className="absolute right-0 top-0 bottom-0 w-1 bg-gradient-to-b from-transparent via-white/50 to-transparent" />}
-                    {/* Inner lane separators */}
                     {i < LANES - 1 && <div className="absolute right-0 top-0 bottom-0 w-0.5 bg-white/20" />}
                   </div>
                 ))}
@@ -613,59 +656,72 @@
               {[...Array(LANES)].map((_, lane) => (
                 <div
                   key={lane}
-                  className={`flex-1 relative ${laneFlashes[lane] ? 'lane-flash' : ''}`}
+                  className={`flex-1 relative z-20 ${laneFlashes[lane] ? 'lane-flash' : ''}`}
                   onTouchStart={(e) => handleTouchStart(e, lane)}
                   onTouchEnd={(e) => handleTouchEnd(e, lane)}
                   onClick={() => checkHit(lane, null)}
                 >
-                  {/* Hit Line - Much thicker and more visible */}
-                  <div 
-                    className="absolute left-0 right-0 h-1.5 z-10 pointer-events-none"
-                    style={{ 
-                      top: `${HIT_LINE_POSITION * 100}%`,
-                      background: 'linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,1) 50%, rgba(255,255,255,0) 100%)',
-                      boxShadow: '0 0 20px rgba(255,255,255,0.8)'
-                    }}
-                  />
-
-                  {/* Notes */}
+                  {/* Notes with proper visuals */}
                   {visibleNotes.filter(note => note.lane === lane).map(note => {
                     const position = ((currentTime - note.time) * NOTE_SPEED + HIT_LINE_POSITION) * 100;
                     
                     return (
                       <div
                         key={note.id}
-                        className="absolute left-1 right-1 flex items-center justify-center pointer-events-none"
+                        className="absolute left-2 right-2 flex items-center justify-center pointer-events-none"
                         style={{ 
                           top: `${position}%`, 
                           transform: 'translateY(-50%)',
                           height: `${NOTE_HEIGHT}px`
                         }}
                       >
+                        {/* TAP - solid dark tile */}
                         {note.type === NOTE_TYPES.TAP && (
-                          <div className="w-full h-full rounded-lg bg-gradient-to-b from-gray-800 to-black border-2 border-white/80 shadow-2xl" 
-                            style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.5), inset 0 2px 10px rgba(255,255,255,0.3)' }} />
+                          <div className="w-full h-full rounded-xl bg-gradient-to-b from-gray-700 via-gray-900 to-black border-2 border-white/60 shadow-2xl flex items-center justify-center"
+                            style={{ boxShadow: '0 4px 25px rgba(0,0,0,0.7), inset 0 2px 15px rgba(255,255,255,0.2)' }}>
+                            {/* Horizontal line indicator */}
+                            <div className="w-3/4 h-1 bg-white/80 rounded-full" />
+                          </div>
                         )}
+
+                        {/* HOLD - yellow with horizontal lines */}
                         {note.type === NOTE_TYPES.HOLD && (
-                          <div className="w-full rounded-lg bg-gradient-to-b from-yellow-600 to-orange-700 border-2 border-yellow-300 shadow-2xl" 
-                            style={{ height: `${NOTE_HEIGHT * 2}px`, boxShadow: '0 4px 20px rgba(251,191,36,0.5)' }} />
+                          <div className="w-full rounded-xl bg-gradient-to-b from-yellow-500 via-yellow-600 to-orange-700 border-2 border-yellow-300 shadow-2xl flex flex-col items-center justify-around py-2" 
+                            style={{ height: `${NOTE_HEIGHT * 2.5}px`, boxShadow: '0 4px 25px rgba(251,191,36,0.6)' }}>
+                            <div className="w-3/4 h-1 bg-white/90 rounded-full" />
+                            <div className="w-3/4 h-1 bg-white/90 rounded-full" />
+                            <div className="w-3/4 h-1 bg-white/90 rounded-full" />
+                            <div className="w-3/4 h-1 bg-white/90 rounded-full" />
+                          </div>
                         )}
+
+                        {/* SWIPE UP - dark with arrow */}
                         {note.type === NOTE_TYPES.SWIPE_UP && (
-                          <div className="w-full h-full rounded-lg bg-gradient-to-b from-gray-800 to-black border-2 border-cyan-400 flex items-center justify-center shadow-2xl"
-                            style={{ boxShadow: '0 4px 20px rgba(34,211,238,0.5)' }}>
-                            <div className="text-5xl font-black text-white drop-shadow-lg">↑</div>
+                          <div className="w-full h-full rounded-xl bg-gradient-to-b from-gray-700 via-gray-900 to-black border-2 border-cyan-300 flex items-center justify-center shadow-2xl"
+                            style={{ boxShadow: '0 4px 25px rgba(34,211,238,0.6), inset 0 2px 15px rgba(34,211,238,0.3)' }}>
+                            <svg className="w-16 h-16 text-white" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M12 4l-8 8h5v8h6v-8h5z" />
+                            </svg>
                           </div>
                         )}
+
+                        {/* SWIPE LEFT */}
                         {note.type === NOTE_TYPES.SWIPE_LEFT && (
-                          <div className="w-full h-full rounded-lg bg-gradient-to-b from-gray-800 to-black border-2 border-red-400 flex items-center justify-center shadow-2xl"
-                            style={{ boxShadow: '0 4px 20px rgba(248,113,113,0.5)' }}>
-                            <div className="text-5xl font-black text-white drop-shadow-lg">←</div>
+                          <div className="w-full h-full rounded-xl bg-gradient-to-b from-gray-700 via-gray-900 to-black border-2 border-red-300 flex items-center justify-center shadow-2xl"
+                            style={{ boxShadow: '0 4px 25px rgba(248,113,113,0.6), inset 0 2px 15px rgba(248,113,113,0.3)' }}>
+                            <svg className="w-16 h-16 text-white" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M20 12l-8-8v5H4v6h8v5z" transform="rotate(180 12 12)" />
+                            </svg>
                           </div>
                         )}
+
+                        {/* SWIPE RIGHT */}
                         {note.type === NOTE_TYPES.SWIPE_RIGHT && (
-                          <div className="w-full h-full rounded-lg bg-gradient-to-b from-gray-800 to-black border-2 border-purple-400 flex items-center justify-center shadow-2xl"
-                            style={{ boxShadow: '0 4px 20px rgba(192,132,252,0.5)' }}>
-                            <div className="text-5xl font-black text-white drop-shadow-lg">→</div>
+                          <div className="w-full h-full rounded-xl bg-gradient-to-b from-gray-700 via-gray-900 to-black border-2 border-purple-300 flex items-center justify-center shadow-2xl"
+                            style={{ boxShadow: '0 4px 25px rgba(192,132,252,0.6), inset 0 2px 15px rgba(192,132,252,0.3)' }}>
+                            <svg className="w-16 h-16 text-white" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M20 12l-8-8v5H4v6h8v5z" />
+                            </svg>
                           </div>
                         )}
                       </div>
@@ -683,54 +739,6 @@
           >
             Exit
           </button>
-        </div>
-      );
-    }
-
-    function AdminPanel({ songs, onAddSong, onDeleteSong, onBack }) {
-      const [newSong, setNewSong] = useState({ title: '', artist: '', genre: '', bpm: 120, duration: 180, unlockTier: 0, requiredStars: 0, audioUrl: '' });
-
-      const handleAddSong = () => {
-        if (!newSong.title || !newSong.artist) { alert('Fill in title and artist'); return; }
-        const song = { ...newSong, difficulty: { easy: Math.floor(Math.random() * 3) + 1, normal: Math.floor(Math.random() * 3) + 3, hard: Math.floor(Math.random() * 3) + 5 } };
-        onAddSong(song);
-        setNewSong({ title: '', artist: '', genre: '', bpm: 120, duration: 180, unlockTier: 0, requiredStars: 0, audioUrl: '' });
-        alert('Song added!');
-      };
-
-      return (
-        <div className="min-h-screen bg-gradient-to-br from-purple-900 via-black to-blue-900 text-white p-6">
-          <div className="max-w-6xl mx-auto">
-            <button onClick={onBack} className="mb-6 px-4 py-2 bg-purple-600 rounded-lg">← Back</button>
-            <h1 className="text-4xl font-black mb-8 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">Admin Panel</h1>
-            <div className="bg-gradient-to-br from-purple-900/50 to-blue-900/50 rounded-xl p-6 border-2 border-purple-500/50 mb-8">
-              <h2 className="text-2xl font-bold mb-4">Add New Song</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <input type="text" placeholder="Title" value={newSong.title} onChange={(e) => setNewSong({ ...newSong, title: e.target.value })} className="bg-black/40 border border-purple-500/30 rounded-lg px-4 py-2 text-white" />
-                <input type="text" placeholder="Artist" value={newSong.artist} onChange={(e) => setNewSong({ ...newSong, artist: e.target.value })} className="bg-black/40 border border-purple-500/30 rounded-lg px-4 py-2 text-white" />
-                <input type="text" placeholder="Genre" value={newSong.genre} onChange={(e) => setNewSong({ ...newSong, genre: e.target.value })} className="bg-black/40 border border-purple-500/30 rounded-lg px-4 py-2 text-white" />
-                <input type="number" placeholder="BPM" value={newSong.bpm} onChange={(e) => setNewSong({ ...newSong, bpm: parseInt(e.target.value) })} className="bg-black/40 border border-purple-500/30 rounded-lg px-4 py-2 text-white" />
-                <input type="number" placeholder="Duration (sec)" value={newSong.duration} onChange={(e) => setNewSong({ ...newSong, duration: parseInt(e.target.value) })} className="bg-black/40 border border-purple-500/30 rounded-lg px-4 py-2 text-white" />
-                <input type="number" placeholder="Unlock Tier" value={newSong.unlockTier} onChange={(e) => setNewSong({ ...newSong, unlockTier: parseInt(e.target.value) })} className="bg-black/40 border border-purple-500/30 rounded-lg px-4 py-2 text-white" />
-                <input type="text" placeholder="Audio URL: ./songs/song.mp3" value={newSong.audioUrl} onChange={(e) => setNewSong({ ...newSong, audioUrl: e.target.value })} className="bg-black/40 border border-purple-500/30 rounded-lg px-4 py-2 text-white col-span-2" />
-              </div>
-              <button onClick={handleAddSong} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-3 rounded-lg font-bold">Add Song</button>
-            </div>
-            <div className="bg-gradient-to-br from-purple-900/50 to-blue-900/50 rounded-xl p-6 border-2 border-purple-500/50">
-              <h2 className="text-2xl font-bold mb-4">All Songs ({songs.length})</h2>
-              <div className="space-y-3">
-                {songs.map(song => (
-                  <div key={song.id} className="bg-black/40 rounded-lg p-4 flex justify-between items-center">
-                    <div>
-                      <h3 className="font-bold">{song.title}</h3>
-                      <p className="text-sm text-gray-400">{song.artist} • {song.genre} • {song.bpm} BPM • {song.duration}s</p>
-                    </div>
-                    <button onClick={() => onDeleteSong(song.id)} className="bg-red-500/20 p-2 rounded-lg text-red-400"><Trash /></button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
         </div>
       );
     }
