@@ -1,0 +1,15 @@
+{
+  "id": "no-me-pidas-perdon",
+  "title": "No Me Pidas Perdón",
+  "artist": "Banda MS",
+  "genre": "Regional Mexican",
+  "bpm": 92,
+  "duration": 223,
+  "difficulty": {
+    "easy": 2,
+    "normal": 4,
+    "hard": 7
+  },
+  "unlockTier": 0,
+  "requiredStars": 0
+}
