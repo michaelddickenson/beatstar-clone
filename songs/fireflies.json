@@ -1,0 +1,15 @@
+{
+  "id": "fireflies",
+  "title": "Fireflies",
+  "artist": "Owl City",
+  "genre": "Electropop",
+  "bpm": 90,
+  "duration": 228,
+  "difficulty": {
+    "easy": 2,
+    "normal": 4,
+    "hard": 6
+  },
+  "unlockTier": 1,
+  "requiredStars": 15
+}

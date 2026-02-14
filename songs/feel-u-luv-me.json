@@ -1,0 +1,15 @@
+{
+  "id": "feel-u-luv-me",
+  "title": "feel u luv me",
+  "artist": "knock2",
+  "genre": "Bass House",
+  "bpm": 128,
+  "duration": 192,
+  "difficulty": {
+    "easy": 3,
+    "normal": 5,
+    "hard": 9
+  },
+  "unlockTier": 0,
+  "requiredStars": 0
+}

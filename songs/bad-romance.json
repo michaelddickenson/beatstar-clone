@@ -1,0 +1,15 @@
+{
+  "id": "bad-romance",
+  "title": "Bad Romance",
+  "artist": "Lady Gaga",
+  "genre": "Pop",
+  "bpm": 119,
+  "duration": 294,
+  "difficulty": {
+    "easy": 2,
+    "normal": 4,
+    "hard": 7
+  },
+  "unlockTier": 1,
+  "requiredStars": 10
+}
