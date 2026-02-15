@@ -1,13 +1,13 @@
-// Game Configuration
+// Game Configuration - FIXED DIMENSIONS
 const GAME_CONFIG = {
-  LANES: 4, // iPad has 4 lanes
+  LANES: 4,
   HIT_PANEL_START: 0.75,
   HIT_PANEL_HEIGHT: 0.15,
-  HIT_LINE: 0.825, // Middle of hit panel
-  NOTE_SPEED: 0.00045, // Slower for better visibility
-  NOTE_WIDTH_RATIO: 0.94,
-  NOTE_HEIGHT: 140, // Taller notes like screenshot
-  HOLD_MULTIPLIER: 3.5, // Hold notes are much taller
+  HIT_LINE: 0.825,
+  NOTE_SPEED: 0.00045,
+  NOTE_WIDTH_RATIO: 0.88, // Narrower so tiles are taller than wide
+  NOTE_HEIGHT: 160, // TALLER (height > width now!)
+  HOLD_TRAIL_WIDTH: 8, // Thin vertical line for holds
   TIMING_WINDOWS: {
     perfect: 75,
     great: 115,
@@ -22,8 +22,8 @@ const GAME_CONFIG = {
     SWIPE_LEFT: 'left',
     SWIPE_RIGHT: 'right'
   },
-  SWIPE_THRESHOLD: 35, // Pixels for swipe detection
-  FAIL_THRESHOLD: 0.5 // Fail if accuracy drops below 50%
+  SWIPE_THRESHOLD: 35,
+  FAIL_THRESHOLD: 0.5
 };
 
 const INITIAL_PLAYER = {
@@ -38,7 +38,6 @@ const INITIAL_PLAYER = {
   unlockedGiftBoxes: []
 };
 
-// Star calculation based on accuracy
 const calculateStars = (accuracy) => {
   if (accuracy >= 98) return 5;
   if (accuracy >= 95) return 4;
@@ -48,13 +47,11 @@ const calculateStars = (accuracy) => {
   return 0;
 };
 
-// Currency rewards
 const calculateCurrency = (stars, difficulty) => {
   const baseReward = { easy: 5, normal: 10, hard: 20 }[difficulty] || 10;
   return baseReward * stars;
 };
 
-// Load songs from JSON files
 const loadSongs = async () => {
   const songList = window.SONG_LIST || [
     'no-me-pidas-perdon',
