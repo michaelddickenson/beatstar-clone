@@ -1,13 +1,12 @@
-// Game Configuration - FIXED DIMENSIONS
+// Game Configuration - FINAL CORRECT VERSION
 const GAME_CONFIG = {
   LANES: 4,
   HIT_PANEL_START: 0.75,
   HIT_PANEL_HEIGHT: 0.15,
   HIT_LINE: 0.825,
   NOTE_SPEED: 0.00045,
-  NOTE_WIDTH_RATIO: 0.88, // Narrower so tiles are taller than wide
-  NOTE_HEIGHT: 160, // TALLER (height > width now!)
-  HOLD_TRAIL_WIDTH: 8, // Thin vertical line for holds
+  NOTE_WIDTH_RATIO: 0.88,
+  NOTE_HEIGHT: 160, // Taller than wide
   TIMING_WINDOWS: {
     perfect: 75,
     great: 115,
@@ -23,7 +22,7 @@ const GAME_CONFIG = {
     SWIPE_RIGHT: 'right'
   },
   SWIPE_THRESHOLD: 35,
-  FAIL_THRESHOLD: 0.5
+  INSTANT_FAIL_ON_MISS: true // ANY miss = instant fail
 };
 
 const INITIAL_PLAYER = {
