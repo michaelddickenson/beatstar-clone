@@ -1,4 +1,4 @@
-// GameScreen Component
+// GameScreen Component - FIXED
 function GameScreen({ song, difficulty, onEnd, onBack }) {
   const [gameState, setGameState] = useState('ready');
   const [score, setScore] = useState(0);
@@ -11,18 +11,16 @@ function GameScreen({ song, difficulty, onEnd, onBack }) {
   const [laneFlashes, setLaneFlashes] = useState([false, false, false, false]);
   const [judgmentDisplay, setJudgmentDisplay] = useState(null);
   const [activeTouches, setActiveTouches] = useState({});
-  const [activeHolds, setActiveHolds] = useState(new Set());
+  const [activeHolds, setActiveHolds] = useState({}); // Track holds per lane
   const [failed, setFailed] = useState(false);
   const gameLoopRef = useRef(null);
   const startTimeRef = useRef(null);
   const audioRef = useRef(null);
-  const laneRefs = useRef([]);
 
   useEffect(() => {
     const map = generateBeatmap(song.bpm, song.duration, difficulty);
     setBeatmap(map);
-    setNotes(map.map(n => ({ ...n, hit: false, missed: false })));
-    laneRefs.current = [...Array(GAME_CONFIG.LANES)].map(() => React.createRef());
+    setNotes(map.map(n => ({ ...n, hit: false, missed: false, holding: false })));
   }, [song, difficulty]);
 
   const startGame = () => {
@@ -38,18 +36,33 @@ function GameScreen({ song, difficulty, onEnd, onBack }) {
       const elapsed = Date.now() - startTimeRef.current;
       setCurrentTime(elapsed);
 
+      // Check hold notes completion
+      setNotes(prev => prev.map(note => {
+        if (note.type === GAME_CONFIG.NOTE_TYPES.HOLD && note.holding) {
+          // Check if hold is complete
+          if (elapsed > note.time + note.duration) {
+            // Hold completed successfully
+            setActiveHolds(holds => {
+              const newHolds = {...holds};
+              delete newHolds[note.lane];
+              return newHolds;
+            });
+            return { ...note, hit: true, holding: false };
+          }
+        }
+        return note;
+      }));
+
       // Auto-miss notes that passed
       setNotes(prev => prev.map(note => {
-        if (!note.hit && !note.missed && elapsed > note.time + GAME_CONFIG.TIMING_WINDOWS.miss) {
+        if (!note.hit && !note.missed && !note.holding && elapsed > note.time + GAME_CONFIG.TIMING_WINDOWS.miss) {
           setCombo(0);
           setJudgments(j => ({ ...j, miss: j.miss + 1 }));
           
-          // Check for fail condition
-          const totalNotes = j.perfect + j.great + j.good + j.miss + 1;
-          const hitNotes = j.perfect + j.great + j.good;
-          const accuracy = hitNotes / totalNotes;
-          
-          if (accuracy < GAME_CONFIG.FAIL_THRESHOLD && totalNotes > 10) {
+          // Check for fail
+          const totalNotes = Object.values(judgments).reduce((a,b) => a + b, 0) + 1;
+          const hitNotes = judgments.perfect + judgments.great + judgments.good;
+          if (totalNotes > 10 && hitNotes / totalNotes < GAME_CONFIG.FAIL_THRESHOLD) {
             failGame();
           }
           
@@ -67,9 +80,30 @@ function GameScreen({ song, difficulty, onEnd, onBack }) {
   const failGame = () => {
     if (!failed) {
       setFailed(true);
-      showJudgment('FAILED!', 'text-red-600');
-      setTimeout(() => endGameNow(true), 1500);
+      clearInterval(gameLoopRef.current);
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      setGameState('failed');
     }
+  };
+
+  const retryGame = () => {
+    // Reset everything
+    setGameState('ready');
+    setScore(0);
+    setCombo(0);
+    setMaxCombo(0);
+    setJudgments({ perfect: 0, great: 0, good: 0, miss: 0 });
+    setCurrentTime(0);
+    setFailed(false);
+    setActiveHolds({});
+    setActiveTouches({});
+    
+    const map = generateBeatmap(song.bpm, song.duration, difficulty);
+    setBeatmap(map);
+    setNotes(map.map(n => ({ ...n, hit: false, missed: false, holding: false })));
   };
 
   const endGameNow = (isFailed) => {
@@ -126,7 +160,7 @@ function GameScreen({ song, difficulty, onEnd, onBack }) {
       }));
     });
     
-    checkHit(lane, null);
+    checkHit(lane, null, true);
   };
 
   const handleTouchMove = (e) => {
@@ -136,6 +170,13 @@ function GameScreen({ song, difficulty, onEnd, onBack }) {
   const handleTouchEnd = (e, lane) => {
     e.preventDefault();
     e.stopPropagation();
+    
+    // Release any holds in this lane
+    setActiveHolds(prev => {
+      const newHolds = {...prev};
+      delete newHolds[lane];
+      return newHolds;
+    });
     
     Array.from(e.changedTouches).forEach(touch => {
       const touchData = activeTouches[touch.identifier];
@@ -149,7 +190,6 @@ function GameScreen({ song, difficulty, onEnd, onBack }) {
           const angle = Math.atan2(dy, dx) * (180 / Math.PI);
           let swipeType = null;
           
-          // All 4 directions
           if (angle >= -45 && angle < 45) {
             swipeType = GAME_CONFIG.NOTE_TYPES.SWIPE_RIGHT;
           } else if (angle >= 45 && angle < 135) {
@@ -160,7 +200,7 @@ function GameScreen({ song, difficulty, onEnd, onBack }) {
             swipeType = GAME_CONFIG.NOTE_TYPES.SWIPE_LEFT;
           }
           
-          checkHit(lane, swipeType);
+          checkHit(lane, swipeType, false);
         }
       }
       
@@ -172,22 +212,20 @@ function GameScreen({ song, difficulty, onEnd, onBack }) {
     });
   };
 
-  const checkHit = (lane, swipeType) => {
+  const checkHit = (lane, swipeType, isTouchStart) => {
     const hitTime = currentTime;
     let bestNote = null;
     let bestTiming = Infinity;
 
     notes.forEach(note => {
-      if (note.lane === lane && !note.hit && !note.missed) {
+      if (note.lane === lane && !note.hit && !note.missed && !note.holding) {
         const timing = Math.abs(note.time - hitTime);
         
         if (timing < GAME_CONFIG.TIMING_WINDOWS.miss && timing < bestTiming) {
           // Type checking
           if (swipeType) {
-            // Must match swipe type
             if (note.type !== swipeType) return;
           } else {
-            // Tap or hold only
             if (note.type !== GAME_CONFIG.NOTE_TYPES.TAP && 
                 note.type !== GAME_CONFIG.NOTE_TYPES.HOLD) return;
           }
@@ -219,30 +257,27 @@ function GameScreen({ song, difficulty, onEnd, onBack }) {
       }
 
       if (judgment !== 'miss') {
-        setNotes(prev => prev.map(n => n.id === bestNote.id ? { ...n, hit: true } : n));
-        setScore(s => s + points * Math.max(1, combo));
-        setCombo(c => {
-          const newCombo = c + 1;
-          setMaxCombo(max => Math.max(max, newCombo));
-          return newCombo;
-        });
-        setJudgments(j => ({ ...j, [judgment]: j[judgment] + 1 }));
-        flashLane(lane);
-        showJudgment(text, color);
-
-        if (bestNote.type === GAME_CONFIG.NOTE_TYPES.HOLD) {
-          setActiveHolds(prev => new Set([...prev, bestNote.id]));
+        if (bestNote.type === GAME_CONFIG.NOTE_TYPES.HOLD && isTouchStart) {
+          // Start holding
+          setNotes(prev => prev.map(n => n.id === bestNote.id ? { ...n, holding: true } : n));
+          setActiveHolds(prev => ({ ...prev, [lane]: bestNote.id }));
+          showJudgment(text, color);
+        } else {
+          // Regular hit
+          setNotes(prev => prev.map(n => n.id === bestNote.id ? { ...n, hit: true } : n));
+          setScore(s => s + points * Math.max(1, combo));
+          setCombo(c => {
+            const newCombo = c + 1;
+            setMaxCombo(max => Math.max(max, newCombo));
+            return newCombo;
+          });
+          setJudgments(j => ({ ...j, [judgment]: j[judgment] + 1 }));
+          flashLane(lane);
+          showJudgment(text, color);
         }
       } else {
         setCombo(0);
         setJudgments(j => ({ ...j, miss: j.miss + 1 }));
-        
-        // Check fail
-        const totalNotes = Object.values(judgments).reduce((a, b) => a + b, 0) + 1;
-        const hitNotes = judgments.perfect + judgments.great + judgments.good;
-        if (hitNotes / totalNotes < GAME_CONFIG.FAIL_THRESHOLD && totalNotes > 10) {
-          failGame();
-        }
       }
     }
   };
@@ -278,6 +313,52 @@ function GameScreen({ song, difficulty, onEnd, onBack }) {
     );
   }
 
+  // FAILED SCREEN
+  if (gameState === 'failed') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-red-900 via-black to-red-900 flex items-center justify-center text-white p-6">
+        <div className="text-center max-w-lg">
+          <div className="mb-8">
+            <div className="text-8xl font-black text-red-500 mb-4 drop-shadow-2xl animate-pulse">FAILED</div>
+            <p className="text-2xl text-gray-300 mb-2">Accuracy dropped below 50%</p>
+            <p className="text-lg text-gray-400">Keep practicing!</p>
+          </div>
+
+          <div className="bg-black/40 backdrop-blur rounded-2xl p-6 mb-8">
+            <div className="grid grid-cols-4 gap-4 text-sm">
+              <div className="bg-green-500/20 rounded-xl p-3">
+                <div className="text-2xl font-bold text-green-400">{judgments.perfect}</div>
+                <div className="text-xs opacity-75">PERFECT</div>
+              </div>
+              <div className="bg-cyan-500/20 rounded-xl p-3">
+                <div className="text-2xl font-bold text-cyan-400">{judgments.great}</div>
+                <div className="text-xs opacity-75">GREAT</div>
+              </div>
+              <div className="bg-yellow-500/20 rounded-xl p-3">
+                <div className="text-2xl font-bold text-yellow-400">{judgments.good}</div>
+                <div className="text-xs opacity-75">GOOD</div>
+              </div>
+              <div className="bg-red-500/20 rounded-xl p-3">
+                <div className="text-2xl font-bold text-red-400">{judgments.miss}</div>
+                <div className="text-xs opacity-75">MISS</div>
+              </div>
+            </div>
+            <div className="text-sm opacity-75 mt-4">Score: {score.toLocaleString()}</div>
+          </div>
+
+          <div className="space-y-3">
+            <button onClick={retryGame} className="w-full bg-green-500 hover:bg-green-600 text-white px-12 py-4 rounded-full text-xl font-black transition-all hover:scale-105 shadow-2xl">
+              🔄 RETRY
+            </button>
+            <button onClick={onBack} className="w-full bg-gray-700 hover:bg-gray-600 text-white px-12 py-4 rounded-full text-xl font-black transition-all hover:scale-105">
+              ← MAIN MENU
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (gameState === 'finished') {
     const totalNotes = beatmap.length;
     const hitNotes = judgments.perfect + judgments.great + judgments.good;
@@ -287,33 +368,24 @@ function GameScreen({ song, difficulty, onEnd, onBack }) {
     return (
       <div className="game-bg min-h-screen flex items-center justify-center text-white p-6">
         <div className="text-center max-w-lg">
-          {failed ? (
-            <div className="mb-8">
-              <h1 className="text-6xl font-black text-red-500 mb-4">FAILED</h1>
-              <p className="text-xl text-gray-300">Accuracy dropped below 50%</p>
+          <div className="relative w-56 h-56 mx-auto mb-8">
+            <svg className="w-full h-full transform -rotate-90">
+              <circle cx="112" cy="112" r="100" stroke="rgba(255,255,255,0.1)" strokeWidth="12" fill="rgba(0,0,0,0.5)" />
+              <circle cx="112" cy="112" r="100" stroke="white" strokeWidth="12" fill="none"
+                strokeDasharray={`${(accuracy / 100) * 628} 628`} strokeLinecap="round" />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <div className="text-sm opacity-75">FINAL SCORE</div>
+              <div className="text-5xl font-black my-2">{score.toLocaleString()}</div>
+              <div className="text-lg opacity-75">{accuracy}%</div>
             </div>
-          ) : (
-            <>
-              <div className="relative w-56 h-56 mx-auto mb-8">
-                <svg className="w-full h-full transform -rotate-90">
-                  <circle cx="112" cy="112" r="100" stroke="rgba(255,255,255,0.1)" strokeWidth="12" fill="rgba(0,0,0,0.5)" />
-                  <circle cx="112" cy="112" r="100" stroke="white" strokeWidth="12" fill="none"
-                    strokeDasharray={`${(accuracy / 100) * 628} 628`} strokeLinecap="round" />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <div className="text-sm opacity-75">FINAL SCORE</div>
-                  <div className="text-5xl font-black my-2">{score.toLocaleString()}</div>
-                  <div className="text-lg opacity-75">{accuracy}%</div>
-                </div>
-              </div>
+          </div>
 
-              <div className="flex justify-center gap-2 mb-8">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className={`w-14 h-14 ${i < stars ? 'text-yellow-400' : 'text-gray-600'}`} filled={i < stars} />
-                ))}
-              </div>
-            </>
-          )}
+          <div className="flex justify-center gap-2 mb-8">
+            {[...Array(5)].map((_, i) => (
+              <Star key={i} className={`w-14 h-14 ${i < stars ? 'text-yellow-400' : 'text-gray-600'}`} filled={i < stars} />
+            ))}
+          </div>
 
           <div className="bg-black/30 backdrop-blur rounded-2xl p-6">
             <div className="grid grid-cols-4 gap-4 text-sm">
@@ -348,9 +420,9 @@ function GameScreen({ song, difficulty, onEnd, onBack }) {
   });
 
   const progress = Math.min(100, (currentTime / (song.duration * 1000)) * 100);
-  const totalNotes = beatmap.length;
+  const totalPlayed = Object.values(judgments).reduce((a,b) => a + b, 0);
   const hitNotes = judgments.perfect + judgments.great + judgments.good;
-  const currentAccuracy = totalNotes > 0 ? ((hitNotes / Math.max(1, Object.values(judgments).reduce((a,b) => a + b, 0))) * 100).toFixed(0) : 100;
+  const currentAccuracy = totalPlayed > 0 ? ((hitNotes / totalPlayed) * 100).toFixed(0) : 100;
 
   return (
     <div className="relative w-full h-screen game-bg overflow-hidden touch-none" style={{touchAction: 'none'}}>
@@ -364,7 +436,7 @@ function GameScreen({ song, difficulty, onEnd, onBack }) {
                 strokeDasharray={`${(progress / 100) * 314} 314`} strokeLinecap="round" />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
-              <div className="text-xs opacity-75">STAGE {difficulty === 'easy' ? '1' : difficulty === 'normal' ? '2' : '3'}</div>
+              <div className="text-xs opacity-75">STAGE</div>
               <div className="text-2xl font-black">{(score / 1000).toFixed(1)}K</div>
               <div className="text-xs opacity-75">×{combo}</div>
             </div>
@@ -386,7 +458,7 @@ function GameScreen({ song, difficulty, onEnd, onBack }) {
       {/* Judgment Display */}
       {judgmentDisplay && (
         <div className="absolute top-1/3 left-0 right-0 z-40 flex justify-center pointer-events-none">
-          <div className={`judgment-text text-7xl font-black ${judgmentDisplay.color} drop-shadow-2xl`} style={{textShadow: '0 0 30px rgba(0,0,0,0.8)'}}>
+          <div className={`judgment-text text-7xl font-black ${judgmentDisplay.color} drop-shadow-2xl`}>
             {judgmentDisplay.text}
           </div>
         </div>
@@ -395,12 +467,15 @@ function GameScreen({ song, difficulty, onEnd, onBack }) {
       {/* Game Field */}
       <div className="absolute inset-0 flex justify-center items-end pb-8">
         <div className="w-full max-w-4xl h-full relative">
-          {/* Hit Panel - Like screenshot */}
-          <div className="absolute left-0 right-0 z-10 pointer-events-none bg-gradient-to-b from-red-900/30 via-red-800/50 to-red-900/30 border-y-4 border-white/40"
+          {/* Hit Panel */}
+          <div className="absolute left-0 right-0 z-10 pointer-events-none"
             style={{
               top: `${GAME_CONFIG.HIT_PANEL_START * 100}%`,
               height: `${GAME_CONFIG.HIT_PANEL_HEIGHT * 100}%`,
-              boxShadow: 'inset 0 3px 40px rgba(255,255,255,0.2), 0 0 50px rgba(255,255,255,0.15)'
+              background: 'linear-gradient(to bottom, rgba(127,29,29,0.3), rgba(153,27,27,0.6), rgba(127,29,29,0.3))',
+              borderTop: '3px solid rgba(255,255,255,0.5)',
+              borderBottom: '3px solid rgba(255,255,255,0.5)',
+              boxShadow: 'inset 0 3px 40px rgba(255,255,255,0.2), 0 0 50px rgba(255,255,255,0.1)'
             }}>
             <div className="absolute bottom-3 left-0 right-0 text-center text-white/15 text-sm font-bold tracking-[0.5em]">
               - P E R F E C T -
@@ -411,28 +486,28 @@ function GameScreen({ song, difficulty, onEnd, onBack }) {
           <div className="absolute inset-0 flex pointer-events-none z-5">
             {[...Array(GAME_CONFIG.LANES)].map((_, i) => (
               <div key={i} className="flex-1 relative">
-                {i === 0 && <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-transparent via-white/50 to-transparent opacity-90" />}
-                {i === GAME_CONFIG.LANES - 1 && <div className="absolute right-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-transparent via-white/50 to-transparent opacity-90" />}
-                {i < GAME_CONFIG.LANES - 1 && <div className="absolute right-0 top-0 bottom-0 w-0.5 bg-white/25" />}
+                <div className="absolute left-0 top-0 bottom-0 w-px bg-white/20" />
               </div>
             ))}
+            <div className="absolute right-0 top-0 bottom-0 w-px bg-white/20" />
           </div>
 
           {/* Interactive Lanes */}
           {[...Array(GAME_CONFIG.LANES)].map((_, lane) => (
-            <div key={lane} ref={el => laneRefs.current[lane] = el}
+            <div key={lane}
               className={`absolute top-0 bottom-0 z-20 ${laneFlashes[lane] ? 'lane-flash' : ''}`}
               style={{ left: `${(lane / GAME_CONFIG.LANES) * 100}%`, width: `${100 / GAME_CONFIG.LANES}%` }}
               onTouchStart={(e) => handleTouchStart(e, lane)}
               onTouchMove={handleTouchMove}
               onTouchEnd={(e) => handleTouchEnd(e, lane)}
-              onClick={() => checkHit(lane, null)}>
+              onClick={() => checkHit(lane, null, true)}>
               
-              {/* Render Notes */}
+              {/* Render Notes - FIXED DESIGN */}
               {visibleNotes.filter(note => note.lane === lane).map(note => {
                 const position = ((currentTime - note.time) * GAME_CONFIG.NOTE_SPEED + GAME_CONFIG.HIT_LINE) * 100;
                 const isHold = note.type === GAME_CONFIG.NOTE_TYPES.HOLD;
                 const noteH = isHold ? GAME_CONFIG.NOTE_HEIGHT * GAME_CONFIG.HOLD_MULTIPLIER : GAME_CONFIG.NOTE_HEIGHT;
+                const isActiveHold = activeHolds[lane] === note.id;
 
                 return (
                   <div key={note.id} className="absolute flex items-center justify-center pointer-events-none"
@@ -444,33 +519,68 @@ function GameScreen({ song, difficulty, onEnd, onBack }) {
                       height: `${noteH}px`
                     }}>
                     
-                    {/* TAP NOTE - Like screenshot */}
+                    {/* TAP NOTE - Like screenshot with 3D effect */}
                     {note.type === GAME_CONFIG.NOTE_TYPES.TAP && (
-                      <div className="w-full h-full rounded-3xl bg-gradient-to-b from-slate-600 via-slate-800 to-black border-4 border-white/80 shadow-2xl flex items-center justify-center"
+                      <div className="w-full h-full rounded-2xl bg-gradient-to-b from-slate-500 via-slate-700 to-black shadow-2xl flex items-center justify-center relative overflow-hidden"
                         style={{
-                          boxShadow: '0 8px 40px rgba(0,0,0,0.9), inset 0 4px 20px rgba(255,255,255,0.2)'
+                          border: '3px solid rgba(255,255,255,0.7)',
+                          boxShadow: '0 10px 40px rgba(0,0,0,0.9), inset 0 -4px 8px rgba(0,0,0,0.5), inset 0 4px 8px rgba(255,255,255,0.2)',
+                          transform: 'perspective(800px) rotateX(8deg)'
                         }}>
-                        <div className="w-4/5 h-2 bg-white/95 rounded-full shadow-lg" style={{boxShadow: '0 0 10px rgba(255,255,255,0.8)'}} />
+                        {/* Glossy effect */}
+                        <div className="absolute top-0 left-0 right-0 h-1/3 bg-gradient-to-b from-white/20 to-transparent rounded-t-2xl" />
+                        {/* White horizontal line */}
+                        <div className="w-4/5 h-2.5 bg-white rounded-full shadow-lg relative z-10" 
+                          style={{boxShadow: '0 0 15px rgba(255,255,255,0.9), 0 2px 4px rgba(0,0,0,0.5)'}} />
                       </div>
                     )}
 
-                    {/* HOLD NOTE - Taller with multiple lines */}
+                    {/* HOLD NOTE - Vertical bar with cap (like screenshot) */}
                     {isHold && (
-                      <div className="w-full h-full rounded-3xl bg-gradient-to-b from-yellow-400 via-orange-500 to-orange-700 border-4 border-yellow-200 shadow-2xl flex flex-col items-center justify-around py-4"
+                      <div className="w-full h-full flex flex-col items-center relative"
                         style={{
-                          boxShadow: '0 8px 40px rgba(251,191,36,0.8), inset 0 4px 20px rgba(255,255,255,0.3)'
+                          filter: isActiveHold ? 'brightness(1.3)' : 'none'
                         }}>
-                        {[...Array(7)].map((_, i) => (
-                          <div key={i} className="w-4/5 h-2 bg-white/95 rounded-full shadow-md" />
-                        ))}
+                        {/* Vertical elongated body */}
+                        <div className="w-4/5 flex-1 rounded-t-2xl bg-gradient-to-b from-yellow-300 via-orange-400 to-orange-600 relative"
+                          style={{
+                            border: '3px solid rgba(255,200,100,0.9)',
+                            boxShadow: '0 10px 40px rgba(251,191,36,0.8), inset 0 -4px 8px rgba(0,0,0,0.4), inset 0 4px 8px rgba(255,255,255,0.3)',
+                            transform: 'perspective(800px) rotateX(8deg)',
+                            minHeight: '70%'
+                          }}>
+                          {/* Glossy highlight on body */}
+                          <div className="absolute top-0 left-0 right-0 h-1/4 bg-gradient-to-b from-white/30 to-transparent rounded-t-2xl" />
+                          {/* Vertical center line for clarity */}
+                          <div className="absolute top-0 bottom-0 left-1/2 transform -translate-x-1/2 w-1 bg-white/40" />
+                        </div>
+                        
+                        {/* Bottom cap - horizontal white line like tap note */}
+                        <div className="w-4/5 h-[15%] rounded-2xl bg-gradient-to-b from-slate-500 via-slate-700 to-black flex items-center justify-center relative"
+                          style={{
+                            border: '3px solid rgba(255,255,255,0.7)',
+                            boxShadow: '0 8px 30px rgba(0,0,0,0.9), inset 0 -3px 6px rgba(0,0,0,0.5), inset 0 3px 6px rgba(255,255,255,0.2)',
+                            marginTop: '-2px'
+                          }}>
+                          {/* Glossy effect on cap */}
+                          <div className="absolute top-0 left-0 right-0 h-1/3 bg-gradient-to-b from-white/20 to-transparent rounded-t-2xl" />
+                          {/* White horizontal line */}
+                          <div className="w-4/5 h-2 bg-white rounded-full shadow-lg" 
+                            style={{boxShadow: '0 0 12px rgba(255,255,255,0.9)'}} />
+                        </div>
                       </div>
                     )}
 
                     {/* SWIPE UP */}
                     {note.type === GAME_CONFIG.NOTE_TYPES.SWIPE_UP && (
-                      <div className="w-full h-full rounded-3xl bg-gradient-to-b from-slate-600 via-slate-800 to-black border-4 border-cyan-300 flex items-center justify-center shadow-2xl"
-                        style={{boxShadow: '0 8px 40px rgba(34,211,238,0.8), inset 0 4px 20px rgba(34,211,238,0.3)'}}>
-                        <svg className="w-24 h-24 text-white drop-shadow-2xl" fill="currentColor" viewBox="0 0 24 24">
+                      <div className="w-full h-full rounded-2xl bg-gradient-to-b from-slate-500 via-slate-700 to-black flex items-center justify-center shadow-2xl relative overflow-hidden"
+                        style={{
+                          border: '3px solid rgba(34,211,238,0.9)',
+                          boxShadow: '0 10px 40px rgba(34,211,238,0.8), inset 0 -4px 8px rgba(0,0,0,0.5), inset 0 4px 8px rgba(34,211,238,0.3)',
+                          transform: 'perspective(800px) rotateX(8deg)'
+                        }}>
+                        <div className="absolute top-0 left-0 right-0 h-1/3 bg-gradient-to-b from-white/20 to-transparent rounded-t-2xl" />
+                        <svg className="w-28 h-28 text-white drop-shadow-2xl relative z-10" fill="currentColor" viewBox="0 0 24 24">
                           <path d="M12 2l-10 10h6v10h8V12h6z" />
                         </svg>
                       </div>
@@ -478,9 +588,14 @@ function GameScreen({ song, difficulty, onEnd, onBack }) {
 
                     {/* SWIPE DOWN */}
                     {note.type === GAME_CONFIG.NOTE_TYPES.SWIPE_DOWN && (
-                      <div className="w-full h-full rounded-3xl bg-gradient-to-b from-slate-600 via-slate-800 to-black border-4 border-green-300 flex items-center justify-center shadow-2xl"
-                        style={{boxShadow: '0 8px 40px rgba(74,222,128,0.8), inset 0 4px 20px rgba(74,222,128,0.3)'}}>
-                        <svg className="w-24 h-24 text-white drop-shadow-2xl" fill="currentColor" viewBox="0 0 24 24">
+                      <div className="w-full h-full rounded-2xl bg-gradient-to-b from-slate-500 via-slate-700 to-black flex items-center justify-center shadow-2xl relative overflow-hidden"
+                        style={{
+                          border: '3px solid rgba(74,222,128,0.9)',
+                          boxShadow: '0 10px 40px rgba(74,222,128,0.8), inset 0 -4px 8px rgba(0,0,0,0.5), inset 0 4px 8px rgba(74,222,128,0.3)',
+                          transform: 'perspective(800px) rotateX(8deg)'
+                        }}>
+                        <div className="absolute top-0 left-0 right-0 h-1/3 bg-gradient-to-b from-white/20 to-transparent rounded-t-2xl" />
+                        <svg className="w-28 h-28 text-white drop-shadow-2xl relative z-10" fill="currentColor" viewBox="0 0 24 24">
                           <path d="M12 22l10-10h-6V2H8v10H2z" />
                         </svg>
                       </div>
@@ -488,9 +603,14 @@ function GameScreen({ song, difficulty, onEnd, onBack }) {
 
                     {/* SWIPE LEFT */}
                     {note.type === GAME_CONFIG.NOTE_TYPES.SWIPE_LEFT && (
-                      <div className="w-full h-full rounded-3xl bg-gradient-to-b from-slate-600 via-slate-800 to-black border-4 border-red-300 flex items-center justify-center shadow-2xl"
-                        style={{boxShadow: '0 8px 40px rgba(248,113,113,0.8), inset 0 4px 20px rgba(248,113,113,0.3)'}}>
-                        <svg className="w-24 h-24 text-white drop-shadow-2xl" fill="currentColor" viewBox="0 0 24 24">
+                      <div className="w-full h-full rounded-2xl bg-gradient-to-b from-slate-500 via-slate-700 to-black flex items-center justify-center shadow-2xl relative overflow-hidden"
+                        style={{
+                          border: '3px solid rgba(248,113,113,0.9)',
+                          boxShadow: '0 10px 40px rgba(248,113,113,0.8), inset 0 -4px 8px rgba(0,0,0,0.5), inset 0 4px 8px rgba(248,113,113,0.3)',
+                          transform: 'perspective(800px) rotateX(8deg)'
+                        }}>
+                        <div className="absolute top-0 left-0 right-0 h-1/3 bg-gradient-to-b from-white/20 to-transparent rounded-t-2xl" />
+                        <svg className="w-28 h-28 text-white drop-shadow-2xl relative z-10" fill="currentColor" viewBox="0 0 24 24">
                           <path d="M2 12l10-10v6h10v8H12v6z" />
                         </svg>
                       </div>
@@ -498,9 +618,14 @@ function GameScreen({ song, difficulty, onEnd, onBack }) {
 
                     {/* SWIPE RIGHT */}
                     {note.type === GAME_CONFIG.NOTE_TYPES.SWIPE_RIGHT && (
-                      <div className="w-full h-full rounded-3xl bg-gradient-to-b from-slate-600 via-slate-800 to-black border-4 border-purple-300 flex items-center justify-center shadow-2xl"
-                        style={{boxShadow: '0 8px 40px rgba(192,132,252,0.8), inset 0 4px 20px rgba(192,132,252,0.3)'}}>
-                        <svg className="w-24 h-24 text-white drop-shadow-2xl" fill="currentColor" viewBox="0 0 24 24">
+                      <div className="w-full h-full rounded-2xl bg-gradient-to-b from-slate-500 via-slate-700 to-black flex items-center justify-center shadow-2xl relative overflow-hidden"
+                        style={{
+                          border: '3px solid rgba(192,132,252,0.9)',
+                          boxShadow: '0 10px 40px rgba(192,132,252,0.8), inset 0 -4px 8px rgba(0,0,0,0.5), inset 0 4px 8px rgba(192,132,252,0.3)',
+                          transform: 'perspective(800px) rotateX(8deg)'
+                        }}>
+                        <div className="absolute top-0 left-0 right-0 h-1/3 bg-gradient-to-b from-white/20 to-transparent rounded-t-2xl" />
+                        <svg className="w-28 h-28 text-white drop-shadow-2xl relative z-10" fill="currentColor" viewBox="0 0 24 24">
                           <path d="M22 12l-10 10v-6H2V8h10V2z" />
                         </svg>
                       </div>
